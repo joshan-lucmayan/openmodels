@@ -1,6 +1,6 @@
 # Attack Planner
 
-**Module**: `openmodels/attack/planner.py`
+**Module**: `opensystem/attack/planner.py`
 
 ## Responsibility
 

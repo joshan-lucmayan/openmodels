@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from openmodels.observation.engine import ObservationEngine
-from openmodels.target.mock import MockTarget
+from opensystem.observation.engine import ObservationEngine
+from opensystem.target.mock import MockTarget
 
 
 def test_observations_persist_to_store(store):

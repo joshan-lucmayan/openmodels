@@ -1,6 +1,6 @@
-# OpenModels — Roadmap
+# OpenSystem — Roadmap
 
-This document describes the planned evolution of OpenModels across releases.
+This document describes the planned evolution of OpenSystem across releases.
 Every release should improve the adversarial engine.
 
 ## v0.1 — Foundation (current)

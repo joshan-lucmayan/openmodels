@@ -1,4 +1,4 @@
-# OpenModels — Glossary
+# OpenSystem — Glossary
 
 Terms used throughout the project.
 
@@ -7,7 +7,7 @@ Terms used throughout the project.
 - **Adapter** — see Target Adapter.
 - **Adversarial loop** — the OBSERVE → MODEL → HYPOTHESIZE → PLAN → TEST →
   OBSERVE → ANALYZE → UPDATE → EVOLVE cycle.
-- **Assumption** — a claim a target relies upon, which OpenModels tries to
+- **Assumption** — a claim a target relies upon, which OpenSystem tries to
   demonstrate is false.
 - **Attack class / family** — a category of attack (e.g., authentication,
   authorization, AI/agent). Implemented as strategies.
@@ -21,12 +21,12 @@ Terms used throughout the project.
 
 - **Defense** — a mitigation applied by the defender; a first-class persisted
   entity.
-- **Defender** — the operator who fixes weaknesses OpenModels finds.
+- **Defender** — the operator who fixes weaknesses OpenSystem finds.
 
 ## E
 
 - **Evidence** — structured data supporting an experiment or finding.
-- **Evolution** — the mechanism by which OpenModels generates new hypotheses
+- **Evolution** — the mechanism by which OpenSystem generates new hypotheses
   after defenses are introduced; auditable via EvolutionEvents.
 - **Evolution event** — an auditable record of an evolution step with trigger,
   reason, and provenance.
@@ -58,7 +58,7 @@ Terms used throughout the project.
 
 - **Observation** — something observed about a target, persisted for
   reasoning.
-- **OpenModels** — the evolving adversarial intelligence platform.
+- **OpenSystem** — the evolving adversarial intelligence platform.
 
 ## P
 
@@ -79,7 +79,7 @@ Terms used throughout the project.
 ## T
 
 - **Target** — the system under adversarial evaluation.
-- **Target adapter** — the common interface between OpenModels and a target
+- **Target adapter** — the common interface between OpenSystem and a target
   (`discover`, `observe`, `describe`, `execute_test`, `collect_evidence`,
   `reset`).
 - **Test spec** — a concrete executable test planned from a hypothesis.

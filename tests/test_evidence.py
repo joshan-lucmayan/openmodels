@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from openmodels.evidence.engine import EvidenceCollector
-from openmodels.experiment.engine import ExperimentEngine
-from openmodels.models import Evidence, EvidenceKind, Hypothesis, TestOutcome
-from openmodels.policy.engine import PolicyEnforcer
-from openmodels.policy.models import Policy
+from opensystem.evidence.engine import EvidenceCollector
+from opensystem.experiment.engine import ExperimentEngine
+from opensystem.models import Evidence, EvidenceKind, Hypothesis, TestOutcome
+from opensystem.policy.engine import PolicyEnforcer
+from opensystem.policy.models import Policy
 
 
 def test_evidence_linked_to_experiment(store, mock_target, policy):
@@ -29,7 +29,7 @@ def test_evidence_linked_to_experiment(store, mock_target, policy):
 
 
 def test_evidence_collector_persists(store, mock_target):
-    from openmodels.models import TestSpec
+    from opensystem.models import TestSpec
 
     mock_target.execute_test(
         TestSpec(name="t", parameters={"weakness": "auth-bypass"})

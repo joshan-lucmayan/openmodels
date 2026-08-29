@@ -1,11 +1,11 @@
-# OpenModels — Attack Model
+# OpenSystem — Attack Model
 
-This document defines how OpenModels reasons about attacks. It is the model
+This document defines how OpenSystem reasons about attacks. It is the model
 for the "attacker" side of the platform.
 
 ## The Attack Hypothesis
 
-The atomic unit of adversarial reasoning in OpenModels is the **hypothesis**:
+The atomic unit of adversarial reasoning in OpenSystem is the **hypothesis**:
 a testable claim that a specific assumption of the target is false.
 
 > "What assumption does this system currently rely upon, and can that
@@ -101,7 +101,7 @@ retained for the record. No finding is created and no evolution event fires.
 
 ## The Evolution Question
 
-When a defense blocks an attack, OpenModels asks:
+When a defense blocks an attack, OpenSystem asks:
 
 > "What assumption made the previous attack fail, and what other path could
 > invalidate that assumption?"
@@ -112,9 +112,9 @@ auditable evolution step (see [`evolution.md`](evolution.md)).
 
 ## Status Reporting
 
-OpenModels never claims a target is "secure". It reports what it did:
+OpenSystem never claims a target is "secure". It reports what it did:
 
-> "OpenModels tested N attack hypotheses across M attack classes. K were
+> "OpenSystem tested N attack hypotheses across M attack classes. K were
 > confirmed as findings, J were blocked, and the remaining classes were
 > tested or remain untested."
 
@@ -128,7 +128,7 @@ resources and entitlements. The fundamental question becomes:
 > "Can an actor who is NOT entitled to a protected resource cause that
 > resource to be accessed, consumed, modified, or disclosed?"
 
-Instead of "can weakness X be demonstrated?", OpenModels asks: for each
+Instead of "can weakness X be demonstrated?", OpenSystem asks: for each
 actor/resource pair where the actor lacks entitlement, does the target
 actually enforce the boundary across every interface that exposes the
 resource?

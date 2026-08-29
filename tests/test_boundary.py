@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openmodels.models import (
+from opensystem.models import (
     EntitlementDecision,
     ProtectedResourceType,
     TestOutcome,
@@ -18,7 +18,7 @@ def test_mock_has_actors_and_resources(mock_target):
 
 
 def test_mock_stable_ids_across_instances():
-    from openmodels.target.mock import MockTarget
+    from opensystem.target.mock import MockTarget
 
     a = MockTarget()
     b = MockTarget()

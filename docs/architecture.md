@@ -1,11 +1,11 @@
-# OpenModels — Architecture
+2# OpenSystem — Architecture
 
-This document describes the system architecture of OpenModels at v0.1. It is
+This document describes the system architecture of OpenSystem at v0.1. It is
 the authoritative description of component responsibilities.
 
 ## Overview
 
-OpenModels is built as a **layered pipeline of engines** operating around a
+OpenSystem is built as a **layered pipeline of engines** operating around a
 **persistent knowledge store**, against a **generic target abstraction**, all
 guarded by a **policy boundary**.
 
@@ -41,7 +41,7 @@ Policy Enforcer (authorization boundary)
    represented as first-class entities, never unstructured text.
 3. **Failed attacks are retained.** They are as valuable as successful ones.
 4. **Evolution is explicit and auditable.** Every evolution step is an
-   `EvolutionEvent` with a reason and provenance. OpenModels never modifies
+   `EvolutionEvent` with a reason and provenance. OpenSystem never modifies
    its own code; it modifies knowledge and generates new hypotheses.
 5. **Policy is separate from attack logic.** Attack strategies never embed
    authorization assumptions.
@@ -50,24 +50,24 @@ Policy Enforcer (authorization boundary)
 
 | Component | Module | Responsibility |
 |---|---|---|
-| Adversarial Engine | `openmodels/core/engine.py` | Orchestrates the v0.1 loop; runs research sessions. |
-| Campaign Engine | `openmodels/campaign/` | Orchestrates v0.2 adversarial campaigns (boundary testing). |
-| Target Abstraction | `openmodels/target/interface.py` | The `TargetAdapter` contract. |
-| Target Adapters | `openmodels/target/{mock,registry}.py` | Concrete targets + registration. |
-| Observation Engine | `openmodels/observation/engine.py` | Captures and persists observations. |
-| Hypothesis Engine | `openmodels/hypothesis/engine.py` | Creates and evaluates hypotheses. |
-| Attack Planner | `openmodels/attack/planner.py` | Strategy registry; generates hypotheses/plans. |
-| Experiment Engine | `openmodels/experiment/engine.py` | Executes tests; records experiments. |
-| Evidence Collector | `openmodels/evidence/engine.py` | Collects and persists evidence. |
-| Finding Engine | `openmodels/finding/engine.py` | Manages the finding lifecycle. |
-| Evolution Engine | `openmodels/evolution/engine.py` | Records evolution; generates next hypotheses. |
-| Knowledge Store | `openmodels/knowledge/store.py` | SQLite persistence + analytical queries. |
-| Policy Layer | `openmodels/policy/` | The authorization boundary. |
-| CLI | `openmodels/cli/` | User interface. |
+| Adversarial Engine | `opensystem/core/engine.py` | Orchestrates the v0.1 loop; runs research sessions. |
+| Campaign Engine | `opensystem/campaign/` | Orchestrates v0.2 adversarial campaigns (boundary testing). |
+| Target Abstraction | `opensystem/target/interface.py` | The `TargetAdapter` contract. |
+| Target Adapters | `opensystem/target/{mock,registry}.py` | Concrete targets + registration. |
+| Observation Engine | `opensystem/observation/engine.py` | Captures and persists observations. |
+| Hypothesis Engine | `opensystem/hypothesis/engine.py` | Creates and evaluates hypotheses. |
+| Attack Planner | `opensystem/attack/planner.py` | Strategy registry; generates hypotheses/plans. |
+| Experiment Engine | `opensystem/experiment/engine.py` | Executes tests; records experiments. |
+| Evidence Collector | `opensystem/evidence/engine.py` | Collects and persists evidence. |
+| Finding Engine | `opensystem/finding/engine.py` | Manages the finding lifecycle. |
+| Evolution Engine | `opensystem/evolution/engine.py` | Records evolution; generates next hypotheses. |
+| Knowledge Store | `opensystem/knowledge/store.py` | SQLite persistence + analytical queries. |
+| Policy Layer | `opensystem/policy/` | The authorization boundary. |
+| CLI | `opensystem/cli/` | User interface. |
 
 ## Data Model
 
-All entities are defined in `openmodels/models.py` as pydantic models:
+All entities are defined in `opensystem/models.py` as pydantic models:
 
 - `Target` — model of the target system (identity, interfaces, assets,
   trust boundaries, rules)

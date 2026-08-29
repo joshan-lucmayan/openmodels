@@ -1,7 +1,7 @@
 # Knowledge Base
 
-This directory holds accumulated knowledge records from OpenModels research
-sessions. Each entry records: date, OpenModels version, target version, kind
+This directory holds accumulated knowledge records from OpenSystem research
+sessions. Each entry records: date, OpenSystem version, target version, kind
 (strategy/defense/assumption/target-change), content, and provenance.
 
 Records are written here as structured summaries; the authoritative, queryable

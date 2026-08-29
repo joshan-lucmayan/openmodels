@@ -1,6 +1,6 @@
 # Evolution Engine
 
-**Module**: `openmodels/evolution/engine.py`
+**Module**: `opensystem/evolution/engine.py`
 
 ## Responsibility
 
@@ -33,6 +33,6 @@ and records an evolution event with full provenance.
 ## Key Design Decisions
 
 - Every evolution step has a trigger, reason, and provenance.
-- OpenModels modifies its knowledge, not its code.
+- OpenSystem modifies its knowledge, not its code.
 - Evolution is auditable: a future operator can reconstruct why any hypothesis
   exists.

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from openmodels.finding.engine import FindingEngine
-from openmodels.models import (
+from opensystem.finding.engine import FindingEngine
+from opensystem.models import (
     Experiment,
     FindingStatus,
     Hypothesis,
@@ -26,7 +26,7 @@ def _make_success_experiment(store, target_id="t1"):
         Experiment(
             hypothesis_id=hyp.id,
             target_id=target_id,
-            openmodels_version="0.1.0",
+            opensystem_version="0.1.0",
             test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
             outcome=TestOutcome.SUCCESS,
             observed_result="confirmed",
@@ -50,7 +50,7 @@ def test_no_finding_for_failed_experiment(store):
     exp = Experiment(
         hypothesis_id=hyp.id,
         target_id="t1",
-        openmodels_version="0.1.0",
+        opensystem_version="0.1.0",
         test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
         outcome=TestOutcome.FAILURE,
     )

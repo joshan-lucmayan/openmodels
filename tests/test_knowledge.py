@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openmodels.models import (
+from opensystem.models import (
     Experiment,
     Hypothesis,
     Knowledge,
@@ -34,7 +34,7 @@ def test_knowledge_search_across_targets(store):
 
 
 def test_previous_attempts_query(store):
-    from openmodels.models import Hypothesis
+    from opensystem.models import Hypothesis
 
     hyp = Hypothesis(target_id="t1", statement="x", origin="strategy:auth-bypass")
     store.save_hypothesis(hyp)
@@ -43,7 +43,7 @@ def test_previous_attempts_query(store):
             Experiment(
                 hypothesis_id=hyp.id,
                 target_id="t1",
-                openmodels_version="0.1.0",
+                opensystem_version="0.1.0",
                 test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
                 outcome=outcome,
             )
@@ -56,7 +56,7 @@ def test_previous_attempts_query(store):
 
 
 def test_what_failed_query(store):
-    from openmodels.models import Hypothesis
+    from opensystem.models import Hypothesis
 
     hyp = Hypothesis(target_id="t1", statement="x", origin="strategy:auth-bypass")
     store.save_hypothesis(hyp)
@@ -64,7 +64,7 @@ def test_what_failed_query(store):
         Experiment(
             hypothesis_id=hyp.id,
             target_id="t1",
-            openmodels_version="0.1.0",
+            opensystem_version="0.1.0",
             test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
             outcome=TestOutcome.FAILURE,
         )
@@ -74,7 +74,7 @@ def test_what_failed_query(store):
 
 
 def test_build_report(store):
-    from openmodels.models import Hypothesis
+    from opensystem.models import Hypothesis
 
     hyp = Hypothesis(target_id="t1", statement="x", origin="strategy:auth-bypass")
     store.save_hypothesis(hyp)
@@ -82,7 +82,7 @@ def test_build_report(store):
         Experiment(
             hypothesis_id=hyp.id,
             target_id="t1",
-            openmodels_version="0.1.0",
+            opensystem_version="0.1.0",
             test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
             outcome=TestOutcome.SUCCESS,
         )

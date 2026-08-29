@@ -1,6 +1,6 @@
 # Observation Engine
 
-**Module**: `openmodels/observation/engine.py`
+**Module**: `opensystem/observation/engine.py`
 
 ## Responsibility
 

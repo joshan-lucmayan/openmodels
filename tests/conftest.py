@@ -1,14 +1,14 @@
-"""Shared fixtures for OpenModels tests."""
+"""Shared fixtures for OpenSystem tests."""
 
 from __future__ import annotations
 
 import pytest
 
-from openmodels.attack.planner import default_planner
-from openmodels.core.engine import AdversarialEngine
-from openmodels.knowledge.store import KnowledgeStore
-from openmodels.policy.models import Policy
-from openmodels.target.mock import MockTarget
+from opensystem.attack.planner import default_planner
+from opensystem.core.engine import AdversarialEngine
+from opensystem.knowledge.store import KnowledgeStore
+from opensystem.policy.models import Policy
+from opensystem.target.mock import MockTarget
 
 
 @pytest.fixture()

@@ -1,6 +1,6 @@
-# OpenModels — Research Methodology
+# OpenSystem — Research Methodology
 
-This document defines the research methodology OpenModels follows. It is the
+This document defines the research methodology OpenSystem follows. It is the
 operating doctrine for the adversarial engine.
 
 ## The Research Loop
@@ -12,13 +12,13 @@ OBSERVE → MODEL → HYPOTHESIZE → PLAN → TEST → OBSERVE RESULT
         → ANALYZE → UPDATE KNOWLEDGE → GENERATE NEXT HYPOTHESIS → TEST AGAIN
 ```
 
-The loop must support iteration. OpenModels is not a one-shot scanner.
+The loop must support iteration. OpenSystem is not a one-shot scanner.
 
 ## Methodology Phases
 
 ### 1. Discover and Model
 
-OpenModels builds a model of the target before generating sophisticated
+OpenSystem builds a model of the target before generating sophisticated
 attacks. It records identity, interfaces, assets, trust boundaries, rules, and
 initial observations. The model is persisted as knowledge so it can be
 reasoned over later.
@@ -97,11 +97,11 @@ A solved vulnerability never disappears.
 
 ## Experiment Recording
 
-Every experiment records (see `Experiment` in `openmodels/models.py`):
+Every experiment records (see `Experiment` in `opensystem/models.py`):
 
 - experiment ID
 - target
-- OpenModels version
+- OpenSystem version
 - timestamp
 - hypothesis
 - test
@@ -115,7 +115,7 @@ Failed experiments MUST be retained.
 
 ## Evidence-Based Reporting
 
-OpenModels never claims "the target is secure." It reports evidence-based
+OpenSystem never claims "the target is secure." It reports evidence-based
 status across the classes:
 
 - TESTED
@@ -127,7 +127,7 @@ status across the classes:
 
 An example report:
 
-> "OpenModels tested 1,842 attack hypotheses across 73 attack classes.
+> "OpenSystem tested 1,842 attack hypotheses across 73 attack classes.
 > 1,831 were blocked, 11 produced findings, and 42 attack classes remain
 > untested."
 

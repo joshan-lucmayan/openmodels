@@ -1,6 +1,6 @@
 # Core Engine
 
-**Module**: `openmodels/core/engine.py`
+**Module**: `opensystem/core/engine.py`
 
 ## Responsibility
 

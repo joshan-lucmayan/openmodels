@@ -1,6 +1,6 @@
-# OpenModels — Attack Catalog
+# OpenSystem — Attack Catalog
 
-This document catalogs the attack classes OpenModels can generate. The catalog
+This document catalogs the attack classes OpenSystem can generate. The catalog
 is a living document; the initial set (v0.1) is small by design and grows as
 strategies are added.
 
@@ -86,7 +86,7 @@ Each entry records:
 
 ## Strategy Registry
 
-Implemented strategies live in `openmodels/attack/planner.py`. `attack list`
+Implemented strategies live in `opensystem/attack/planner.py`. `attack list`
 prints them. New strategies are registered declaratively (an
 `AttackStrategy` with a weakness key) or programmatically (a strategy factory).
 

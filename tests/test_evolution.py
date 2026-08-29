@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from openmodels.evolution.engine import EvolutionEngine
-from openmodels.models import (
+from opensystem.evolution.engine import EvolutionEngine
+from opensystem.models import (
     Defense,
     EvolutionTrigger,
     Experiment,
@@ -23,7 +23,7 @@ def _make_experiment(store, outcome=TestOutcome.SUCCESS, target_id="t1"):
     exp = Experiment(
         hypothesis_id=hyp.id,
         target_id=target_id,
-        openmodels_version="0.1.0",
+        opensystem_version="0.1.0",
         test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
         outcome=outcome,
         observed_result="r",
@@ -85,7 +85,7 @@ def test_next_hypothesis_skips_already_tested(store):
         target_id="t1", statement="y", origin="strategy:authz-ownership"
     )
     store.save_hypothesis(other)
-    from openmodels.models import HypothesisStatus
+    from opensystem.models import HypothesisStatus
 
     store.update_hypothesis_status(other.id, HypothesisStatus.REJECTED)
 

@@ -3,14 +3,14 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "openmodels"
+name = "opensystem"
 version = "0.1.0"
 description = "An evolving adversarial intelligence platform that continuously searches for weaknesses in complex systems."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
-    { name = "OpenModels Contributors" },
+    { name = "OpenSystem Contributors" },
 ]
 keywords = [
     "security",
@@ -33,10 +33,10 @@ dev = [
 ]
 
 [project.scripts]
-openmodels = "openmodels.main:cli"
+opensystem = "opensystem.main:cli"
 
 [tool.setuptools.packages.find]
-include = ["openmodels*"]
+include = ["opensystem*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

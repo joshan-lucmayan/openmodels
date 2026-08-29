@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openmodels.models import HypothesisStatus, TestOutcome
+from opensystem.models import HypothesisStatus, TestOutcome
 
 
 def test_research_loop_runs_experiments(engine, mock_target):
@@ -21,8 +21,8 @@ def test_research_finds_all_seeded_weaknesses(engine, mock_target):
 
 
 def test_research_respects_policy_max_rounds(store, mock_target, policy):
-    from openmodels.attack.planner import default_planner
-    from openmodels.core.engine import AdversarialEngine
+    from opensystem.attack.planner import default_planner
+    from opensystem.core.engine import AdversarialEngine
 
     limited = policy.model_copy(update={"max_rounds": 3})
     engine = AdversarialEngine(

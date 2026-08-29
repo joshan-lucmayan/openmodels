@@ -1,7 +1,7 @@
-# OpenModels — Threat Model
+# OpenSystem — Threat Model
 
-This document analyzes threats to **OpenModels itself** and the operational
-environment it runs in. It is distinct from the attack model (what OpenModels
+This document analyzes threats to **OpenSystem itself** and the operational
+environment it runs in. It is distinct from the attack model (what OpenSystem
 does to its targets) and the security model (how deployments authorize it).
 
 ## Asset Classes
@@ -24,7 +24,7 @@ credentials are referenced, never stored verbatim; the `.gitignore` excludes
 data files. Future: encryption at rest.
 
 ### T2 — Prompt/action injection through a target
-A hostile target could craft observations designed to manipulate OpenModels'
+A hostile target could craft observations designed to manipulate OpenSystem'
 reasoning (the adversarial analogue of prompt injection for attacker agents).
 **Mitigations:** v0.1 reasoning is deterministic and strategy-driven; observed
 data is treated as data, not instructions. Future: separate untrusted
@@ -44,9 +44,9 @@ future research (e.g., marking a real weakness as "blocked").
 event records trigger + reason; findings require experiment evidence.
 Future: signed/verified provenance chains.
 
-### T5 — Supply chain compromise of OpenModels itself
-Dependency substitution in the OpenModels toolchain (see the
-`dependency-supply-chain` attack class — OpenModels must eat its own dog food).
+### T5 — Supply chain compromise of OpenSystem itself
+Dependency substitution in the OpenSystem toolchain (see the
+`dependency-supply-chain` attack class — OpenSystem must eat its own dog food).
 **Mitigations:** pinned dependencies in lockfiles; review of the dependency
 tree. The project models this class explicitly for its targets.
 
@@ -70,7 +70,7 @@ reasons recorded.
 [ Target ]                   — UNTRUSTED (assume hostile)
 ```
 
-OpenModels treats every target as hostile. The target can return arbitrary
+OpenSystem treats every target as hostile. The target can return arbitrary
 observations and evidence. These are stored as data and never executed.
 
 ## Assumptions

@@ -1,4 +1,4 @@
-# OpenModels — Findings
+# OpenSystem — Findings
 
 This document describes the finding lifecycle and how findings are managed.
 
@@ -7,7 +7,7 @@ This document describes the finding lifecycle and how findings are managed.
 A finding is a **confirmed weakness** with supporting evidence. It is created
 from a successful experiment (a hypothesis that tested `SUCCESS`).
 
-A finding contains (see `Finding` in `openmodels/models.py`):
+A finding contains (see `Finding` in `opensystem/models.py`):
 
 - Finding ID
 - Target
@@ -83,11 +83,11 @@ When the defender patches a finding:
 
 ## CLI
 
-- `openmodels finding list` — list findings (optionally only open ones)
-- `openmodels finding transition <id> <status>` — advance the lifecycle
+- `opensystem finding list` — list findings (optionally only open ones)
+- `opensystem finding transition <id> <status>` — advance the lifecycle
 
 ## Status Vocabulary
 
-Findings are reported with evidence-based statuses. OpenModels never claims a
+Findings are reported with evidence-based statuses. OpenSystem never claims a
 target is "secure" — it reports what was found, tested, blocked, and what
 remains untested.

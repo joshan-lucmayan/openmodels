@@ -1,6 +1,6 @@
 # Target Adapters
 
-**Module**: `openmodels/target/registry.py`
+**Module**: `opensystem/target/registry.py`
 
 ## Responsibility
 

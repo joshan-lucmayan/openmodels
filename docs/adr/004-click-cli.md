@@ -5,7 +5,7 @@
 
 ## Context
 
-OpenModels needs a functional, non-decorative CLI (init, target management,
+OpenSystem needs a functional, non-decorative CLI (init, target management,
 research sessions, experiment execution, finding management, attack listing,
 knowledge search, status, security-test cycle).
 
@@ -24,7 +24,7 @@ Use **Click** for the CLI, with **Rich** available for output styling.
 
 ## Rationale
 
-1. **Nested command groups**: `openmodels target list`, `openmodels research
+1. **Nested command groups**: `opensystem target list`, `opensystem research
    start`, etc. map naturally to Click groups.
 2. **Already installed** in the environment.
 3. **Mature and stable**: minimal churn for a long-lived project.

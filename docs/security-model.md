@@ -1,18 +1,18 @@
-# OpenModels — Security Model
+# OpenSystem — Security Model
 
-This document defines how OpenModels is *deployed* and what it is *authorized*
+This document defines how OpenSystem is *deployed* and what it is *authorized*
 to do. It is deliberately distinct from:
 
-- the **threat model** — threats to OpenModels itself
+- the **threat model** — threats to OpenSystem itself
   ([`threat-model.md`](threat-model.md))
-- the **attack model** — how OpenModels reasons about targets
+- the **attack model** — how OpenSystem reasons about targets
   ([`attack-model.md`](attack-model.md))
 
 ## Principle
 
 The adversarial reasoning engine is independent of target authorization. The
 core engine is capable of sophisticated adversarial reasoning; the deployment
-layer determines which targets and operations the current OpenModels instance
+layer determines which targets and operations the current OpenSystem instance
 is authorized to perform.
 
 This allows the same engine to be used for:
@@ -32,7 +32,7 @@ This allows the same engine to be used for:
 
 ## The Policy Layer
 
-The policy (`Policy` in `openmodels/policy/models.py`) declares:
+The policy (`Policy` in `opensystem/policy/models.py`) declares:
 
 | Field | Meaning |
 |---|---|
@@ -67,7 +67,7 @@ enforcer.
 
 ## Handling of Credentials
 
-- Policies reference credentials by name; OpenModels does not store secrets.
+- Policies reference credentials by name; OpenSystem does not store secrets.
 - `allowed_credentials` is a list of identifiers, not secret material.
 - Secrets are provisioned out of band by the operator.
 
@@ -84,11 +84,11 @@ The stop reason is recorded in the `ResearchReport`.
 
 ## Status Vocabulary
 
-OpenModels reports status in these terms only: TESTED, VERIFIED, FAILED,
+OpenSystem reports status in these terms only: TESTED, VERIFIED, FAILED,
 BLOCKED, UNKNOWN, UNTESTED. It never claims "secure".
 
 ## Responsibilities
 
 - **Operator**: configure an honest, correct policy.
-- **OpenModels**: enforce the policy everywhere, store no secrets, record
+- **OpenSystem**: enforce the policy everywhere, store no secrets, record
   provenance, and stop when required.

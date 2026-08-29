@@ -11,13 +11,13 @@ test:
 	$(PY) -m pytest
 
 lint:
-	$(PY) -m ruff check openmodels tests || true
+	$(PY) -m ruff check opensystem tests || true
 
 demo:
-	$(VENV)/openmodels security-test mock --rounds 5
+	$(VENV)/opensystem security-test mock --rounds 5
 
 clean:
 	rm -rf .venv .pytest_cache build dist *.egg-info
 	find . -name '__pycache__' -type d -prune -exec rm -rf {} +
 	find . -name '*.pyc' -delete
-	rm -rf .om openmodels.db
+	rm -rf .os opensystem.db

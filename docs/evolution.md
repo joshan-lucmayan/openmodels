@@ -1,10 +1,10 @@
-# OpenModels — Evolution
+# OpenSystem — Evolution
 
-This is one of the most important components of OpenModels.
+This is one of the most important components of OpenSystem.
 
 ## The Objective
 
-When a defender blocks an attack, OpenModels must **not** simply repeat the
+When a defender blocks an attack, OpenSystem must **not** simply repeat the
 same attack indefinitely. It must ask:
 
 > **"What assumption made the previous attack fail, and what other path could
@@ -18,7 +18,7 @@ Attack A → Defense A → Attack B → Defense B → Attack C → Defense C →
 
 ## What Evolves
 
-OpenModels evolves its **knowledge and hypotheses**, never its own code. Every
+OpenSystem evolves its **knowledge and hypotheses**, never its own code. Every
 evolution step is an explicit, auditable `EvolutionEvent` with:
 
 - a `trigger` (ATTACK_SUCCESS, ATTACK_FAILURE, DEFENSE_APPLIED, TARGET_CHANGE,
@@ -70,7 +70,7 @@ ROUND 2 (evolve)
 
 ## Provenance and Auditability
 
-OpenModels does **not** implement arbitrary self-modifying code. The explicit,
+OpenSystem does **not** implement arbitrary self-modifying code. The explicit,
 auditable evolution mechanism means:
 
 - every knowledge record has `provenance`
@@ -79,6 +79,6 @@ auditable evolution mechanism means:
 
 ## Statuses vs Claims
 
-Evolution is driven by evidence. OpenModels tracks TESTED / VERIFIED / FAILED
+Evolution is driven by evidence. OpenSystem tracks TESTED / VERIFIED / FAILED
 / BLOCKED / UNKNOWN / UNTESTED and never claims "secure". Each evolution step
 is a response to evidence about the target.

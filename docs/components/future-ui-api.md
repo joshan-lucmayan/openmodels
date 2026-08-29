@@ -4,7 +4,7 @@
 
 ## Responsibility
 
-Future web UI and REST API for OpenModels.
+Future web UI and REST API for OpenSystem.
 
 ## Planned Architecture
 

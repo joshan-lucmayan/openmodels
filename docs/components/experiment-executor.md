@@ -1,6 +1,6 @@
 # Experiment Executor
 
-**Module**: `openmodels/experiment/engine.py`
+**Module**: `opensystem/experiment/engine.py`
 
 ## Responsibility
 

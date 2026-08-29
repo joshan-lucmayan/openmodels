@@ -1,15 +1,15 @@
 # CLI
 
-**Module**: `openmodels/cli/`
+**Module**: `opensystem/cli/`
 
 ## Responsibility
 
-The primary user interface for OpenModels.
+The primary user interface for OpenSystem.
 
 ## Commands
 
 ```
-openmodels
+opensystem
   init               Initialize the data directory and knowledge store.
   target
     list             List available target adapters.

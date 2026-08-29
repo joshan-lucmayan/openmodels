@@ -5,7 +5,7 @@
 
 ## Context
 
-OpenModels is a long-term, evolving adversarial intelligence platform. It must
+OpenSystem is a long-term, evolving adversarial intelligence platform. It must
 support plugin-style extension (target adapters, attack strategies, future
 reasoning engines), persistent structured data, a CLI, and iterative research
 development. The technology choice affects the entire project.
@@ -26,7 +26,7 @@ Use **Python 3.14** with **pydantic**, **click**, and standard-library
 
 ## Rationale
 
-1. **Fit for the architecture**: OpenModels is a plugin-oriented reasoning
+1. **Fit for the architecture**: OpenSystem is a plugin-oriented reasoning
    platform. Python's duck typing + pydantic give flexible, validated,
    polymorphic models — ideal for the `TargetAdapter`, strategy registry, and
    future pluggable reasoners.

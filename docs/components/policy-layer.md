@@ -1,6 +1,6 @@
 # Policy Layer
 
-**Module**: `openmodels/policy/`
+**Module**: `opensystem/policy/`
 
 ## Responsibility
 

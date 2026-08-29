@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from openmodels.policy.engine import PolicyEnforcer, PolicyViolation
-from openmodels.policy.models import Operation, Policy
+from opensystem.policy.engine import PolicyEnforcer, PolicyViolation
+from opensystem.policy.models import Operation, Policy
 
 
 def test_policy_allows_default_operations():
@@ -38,7 +38,7 @@ def test_policy_scoped_to_target():
     policy = Policy(target_name="mock")
     enforcer = PolicyEnforcer(policy)
 
-    from openmodels.models import Target
+    from opensystem.models import Target
 
     other = Target(name="production", adapter="webapp")
     with pytest.raises(PolicyViolation):
@@ -49,7 +49,7 @@ def test_wildcard_policy_allows_any_target():
     policy = Policy(target_name="*")
     enforcer = PolicyEnforcer(policy)
 
-    from openmodels.models import Target
+    from opensystem.models import Target
 
     t = Target(name="production", adapter="webapp")
     enforcer.check(Operation.TEST, t)

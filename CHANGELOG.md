@@ -1,5 +1,54 @@
 # Changelog
 
+## v0.3.0 — Show-Once Proof Sessions (2026-08-29)
+
+### Added
+
+- **Impact verification** (`ImpactVerifier`): independently re-probes a
+  confirmed finding to confirm the protected resource was genuinely reached.
+  Failed verifications are persisted for the audit trail.
+- **Show-once proof sessions** (`ProofSessionService`): a short-lived,
+  single-display proof credential bound to a confirmed finding, actor, and
+  resource — for the authorized test target only.
+- **CSPRNG key generation** (`secrets.token_hex(32)`, 256-bit), format
+  `omk_<session_id>_<secret>`.
+- **Hash-only storage**: only the SHA-256 hash of the key is persisted.
+- **Full validation pipeline**: parse → lookup → hash-compare → revocation →
+  expiry → target/finding/actor binding checks → authenticate.
+- **Attack-proof binding enforcement**: `verify()` accepts optional expected
+  target/finding/actor context and rejects mismatches
+  (`target-mismatch`, `finding-mismatch`, `actor-mismatch`).
+- **Authentication evidence**: each successful validation attaches an
+  evidence record to the finding (never containing the raw key).
+- **Masked reads**: inspect/list return the masked key (`omk_<id>...`) and a
+  truncated hash; the raw key is never returned.
+- **Immediate revocation** with `revoked_at` persisted and the historical
+  record preserved; revocation takes precedence over expiry.
+- **Policy gate**: new `PROOF_SESSION` operation, denied by default; the
+  command must explicitly enable it and match the target.
+- **Case studies**: reproducible written reports assembled from real store
+  data (experiments, evidence, attack surface, hypotheses, defenses),
+  exportable to JSON, and guaranteed to never contain raw proof keys.
+- **CLI commands**: `impact verify`, `finding prove`, `proof-key inspect/
+  list/revoke/verify` (stdin), `case-study create/show/export/list`.
+- **Schema migration**: `CREATE TABLE IF NOT EXISTS` schema now runs on
+  every open, so v0.2 databases transparently gain the v0.3 tables
+  (restart/upgrade preserves proof-key validation).
+- **33 new tests** (113 total) covering generation, show-once, storage,
+  validation, expiry, revocation precedence, binding, evidence capture,
+  CLI-level workflow, leakage prevention, and the complete workflow.
+
+### Security
+
+- Raw keys never touch the database, logs, stdout (after creation), stderr,
+  exceptions, case studies, or exports (verified by an end-to-end audit that
+  greps the SQLite file and WAL for the raw secret).
+- Proof keys are scoped to the authorized test target and affected actor;
+  they are not privileged credentials.
+- `proof-key verify` deliberately accepts no key argument (shell history
+  exposure): the key is read via stdin or getpass (no echo), never echoed,
+  logged, or included in output or exceptions.
+
 ## v0.2.0 — Adversarial Campaign Engine (2026-08-29)
 
 ### Added

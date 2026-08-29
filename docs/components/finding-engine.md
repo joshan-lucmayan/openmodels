@@ -1,6 +1,6 @@
 # Finding Engine
 
-**Module**: `openmodels/finding/engine.py`
+**Module**: `opensystem/finding/engine.py`
 
 ## Responsibility
 

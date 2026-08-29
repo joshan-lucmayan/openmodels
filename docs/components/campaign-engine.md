@@ -1,6 +1,6 @@
 # Campaign Engine
 
-**Module**: `openmodels/campaign/`
+**Module**: `opensystem/campaign/`
 
 ## Responsibility
 

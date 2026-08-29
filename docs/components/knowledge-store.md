@@ -1,10 +1,10 @@
 # Knowledge Store
 
-**Module**: `openmodels/knowledge/store.py`
+**Module**: `opensystem/knowledge/store.py`
 
 ## Responsibility
 
-Persistent storage for the OpenModels research graph. Supports all entity
+Persistent storage for the OpenSystem research graph. Supports all entity
 types (targets, observations, hypotheses, experiments, evidence, findings,
 defenses, regressions, knowledge, evolution events) plus analytical queries.
 

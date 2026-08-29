@@ -1,6 +1,6 @@
 # Evidence Collector
 
-**Module**: `openmodels/evidence/engine.py`
+**Module**: `opensystem/evidence/engine.py`
 
 ## Responsibility
 

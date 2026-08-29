@@ -5,7 +5,7 @@
 
 ## Context
 
-OpenModels is an adversarial engine, not a single-target tool. To build and
+OpenSystem is an adversarial engine, not a single-target tool. To build and
 test the core reasoning loop correctly, it needs a controllable target before
 connecting real systems.
 

@@ -1,6 +1,6 @@
 # Hypothesis Engine
 
-**Module**: `openmodels/hypothesis/engine.py`
+**Module**: `opensystem/hypothesis/engine.py`
 
 ## Responsibility
 

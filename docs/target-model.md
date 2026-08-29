@@ -1,6 +1,6 @@
-# OpenModels — Target Model
+# OpenSystem — Target Model
 
-OpenModels uses a **generic target model** rather than hardcoding the platform
+OpenSystem uses a **generic target model** rather than hardcoding the platform
 around one technology. This is what allows the same adversarial engine to
 reason about web applications, APIs, identity systems, AI/agent systems,
 distributed systems, simulations, and more.
@@ -10,17 +10,17 @@ distributed systems, simulations, and more.
 ```
 Target
  ├── Identity          — name, kind, version
- ├── Interfaces        — the surfaces OpenModels can interact with
+ ├── Interfaces        — the surfaces OpenSystem can interact with
  ├── Assets            — the things that have value and can be harmed
  ├── Trust boundaries  — where trust assumptions change
  ├── Rules             — declared invariants the target claims to hold
  ├── State             — observable state over time
  ├── Dependencies      — things the target relies on
  ├── Permissions       — what the target (or its users) may do
- └── Observable behavior — what OpenModels can actually observe
+ └── Observable behavior — what OpenSystem can actually observe
 ```
 
-`Target` (in `openmodels/models.py`) captures identity, interfaces, assets,
+`Target` (in `opensystem/models.py`) captures identity, interfaces, assets,
 trust boundaries, and rules. The remaining aspects are captured through the
 adapter's `observe()` / `describe()` lifecycle and persisted as observations
 and knowledge.
@@ -28,7 +28,7 @@ and knowledge.
 ## The TargetAdapter Interface
 
 Every target implements the common interface (in
-`openmodels/target/interface.py`):
+`opensystem/target/interface.py`):
 
 | Method | Responsibility |
 |---|---|
@@ -47,8 +47,8 @@ adapter.
 Adapters are registered by name in `TargetRegistry`:
 
 ```python
-from openmodels.target.registry import register_target
-from openmodels.target.interface import TargetAdapter
+from opensystem.target.registry import register_target
+from opensystem.target.interface import TargetAdapter
 
 class WebAppAdapter(TargetAdapter):
     name = "webapp"
@@ -62,7 +62,7 @@ the engine.
 
 ## The Mock Target
 
-The v0.1 shipped adapter is `MockTarget` (`openmodels/target/mock.py`). It
+The v0.1 shipped adapter is `MockTarget` (`opensystem/target/mock.py`). It
 models a system as a set of weaknesses, each either *active* (exploitable) or
 *blocked* (defended):
 
@@ -86,7 +86,7 @@ enterprise software, supply-chain systems, source code, configuration,
 protocols, physical-system simulations, scientific systems, space-system
 simulations, and other computational systems.
 
-## How OpenModels Builds Its Model
+## How OpenSystem Builds Its Model
 
 1. **DISCOVER** — `discover()` produces the initial `Target`.
 2. **OBSERVE** — `observe()` produces observations, persisted to the store.
@@ -101,7 +101,7 @@ did we previously try? What failed? What defense stopped it? What changed?"
 ## v0.2 — Actors, Entitlements, and Protected Resources
 
 The v0.2 campaign architecture adds a security-boundary perspective to the
-target model. OpenModels models what is *protected*, who may access it, and
+target model. OpenSystem models what is *protected*, who may access it, and
 whether the target actually enforces the declared boundaries.
 
 ```
@@ -117,7 +117,7 @@ Target
 ### Target Configuration
 
 Deployment-time targets are described with `TargetConfig` (via
-`openmodels target add`), which records target name, type, organization,
+`opensystem target add`), which records target name, type, organization,
 environment, authorized scope, available interfaces, test credentials,
 protected resources, testing policy, time window, and emergency-stop
 configuration. The core engine does NOT assume every target is a website.

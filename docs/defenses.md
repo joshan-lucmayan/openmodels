@@ -1,11 +1,11 @@
-# OpenModels — Defenses
+# OpenSystem — Defenses
 
-This document describes how OpenModels records, tracks, and reasons over
+This document describes how OpenSystem records, tracks, and reasons over
 defenses.
 
 ## The Principle
 
-When OpenModels discovers Attack A, the defender gains Defense A. OpenModels
+When OpenSystem discovers Attack A, the defender gains Defense A. OpenSystem
 then records "Defense A exists" and searches for Attack B. This creates an
 adversarial improvement loop:
 
@@ -17,7 +17,7 @@ Defenses are first-class knowledge. They are never silently dropped.
 
 ## The Defense Model
 
-A `Defense` (in `openmodels/models.py`) records:
+A `Defense` (in `opensystem/models.py`) records:
 
 - ID
 - the finding it mitigates (`finding_id`)
@@ -65,5 +65,5 @@ historical reasoning.
 ## The Ledger
 
 Historical defense records are maintained under `docs/defenses.md` and the
-knowledge base. Each entry should record: date, OpenModels version, target
+knowledge base. Each entry should record: date, OpenSystem version, target
 version, finding ID, defense applied, verification result.

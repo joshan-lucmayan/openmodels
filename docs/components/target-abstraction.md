@@ -1,6 +1,6 @@
 # Target Abstraction
 
-**Module**: `openmodels/target/interface.py`
+**Module**: `opensystem/target/interface.py`
 
 ## Responsibility
 

@@ -13,13 +13,13 @@ dist/
 .venv/
 venv/
 
-# OpenModels runtime artifacts
-.om/
+# OpenSystem runtime artifacts
+.os/
 *.db
 *.db-journal
 *.db-wal
 *.db-shm
-openmodels.db
+opensystem.db
 
 # Test / coverage artifacts
 .pytest_cache/

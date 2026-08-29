@@ -23,7 +23,7 @@ indexes; enforce referential integrity at the application layer through the
 1. **The store is an internal seam**: pydantic models + the store's public API
    are the real contract. DB FKs add friction without catching genuine errors
    in the current usage patterns.
-2. **Persist-then-link ordering is legitimate**: OpenModels may record an
+2. **Persist-then-link ordering is legitimate**: OpenSystem may record an
    observation or hypothesis before the target row is committed; this is
    normal, not corruption.
 3. **Keeping FKs would force awkward write-ordering** across many call sites

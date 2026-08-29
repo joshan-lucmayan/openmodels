@@ -4,7 +4,7 @@ Guidance for AI agents and contributors working in this repository.
 
 ## Project
 
-OpenModels is an evolving adversarial intelligence platform. It continuously
+OpenSystem is an evolving adversarial intelligence platform. It continuously
 searches for weaknesses in complex systems, learns from both success and
 failure, and evolves. See `docs/vision.md`.
 
@@ -19,22 +19,22 @@ python3 -m venv .venv
 .venv/bin/python -m pytest
 
 # Run the CLI
-.venv/bin/openmodels --help
+.venv/bin/opensystem --help
 ```
 
 ## Conventions
 
 - **Language**: Python 3.11+. Use pydantic v2 models for all entities.
-- **Entities**: define new entities in `openmodels/models.py` as pydantic
+- **Entities**: define new entities in `opensystem/models.py` as pydantic
   `BaseModel` classes. Never represent research process as unstructured text.
 - **Persistence**: all persistence goes through `KnowledgeStore` in
-  `openmodels/knowledge/store.py`. Add CRUD + analytical query methods there.
+  `opensystem/knowledge/store.py`. Add CRUD + analytical query methods there.
 - **Targets**: new target classes implement `TargetAdapter` and are
   registered via `register_target()`.
 - **Attacks**: new attack families are registered as `AttackStrategy` (or a
   strategy factory) on the `AttackPlanner`.
 - **Policy**: the reasoning engine must never embed authorization logic. All
-  authorization lives in `openmodels/policy/`.
+  authorization lives in `opensystem/policy/`.
 - **Tests**: every implemented component must have at least one test. Run the
   suite with `.venv/bin/python -m pytest`.
 - **Docs**: architectural decisions go in `docs/adr/` (ADR style). Component
@@ -69,5 +69,5 @@ Run a single file: `.venv/bin/python -m pytest tests/test_loop.py`
 
 ## Git
 
-- This repository should not contain: `openmodels.db`, `.om/`, `.venv/`,
+- This repository should not contain: `opensystem.db`, `.os/`, `.venv/`,
   secrets, or credentials (see `.gitignore`).

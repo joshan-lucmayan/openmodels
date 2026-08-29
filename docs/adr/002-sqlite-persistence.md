@@ -5,7 +5,7 @@
 
 ## Context
 
-OpenModels must persist a growing research graph: observations, hypotheses,
+OpenSystem must persist a growing research graph: observations, hypotheses,
 experiments, evidence, findings, defenses, regressions, knowledge, and
 evolution events. It must support historical reasoning queries ("what did we
 try?", "what failed?", "what defense stopped it?"). The storage choice should
@@ -33,7 +33,7 @@ Use **SQLite** as the initial persistent store, via a dedicated
 2. **Single-instance fit**: the expected usage pattern during early
    development is one operator, one machine. SQLite comfortably handles this.
 3. **Transactional + queryable**: SQL is ideal for the historical-reasoning
-   queries OpenModels needs.
+   queries OpenSystem needs.
 4. **Built into Python**: no extra dependency.
 5. **Clean migration path**: all persistence flows through `KnowledgeStore`;
    swapping in PostgreSQL (e.g., via SQLAlchemy) behind the same interface is

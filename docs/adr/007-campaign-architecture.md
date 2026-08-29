@@ -5,9 +5,9 @@
 
 ## Context
 
-OpenModels v0.1 reasoned in terms of *weaknesses*: hypotheses about seeded
+OpenSystem v0.1 reasoned in terms of *weaknesses*: hypotheses about seeded
 flaws in a target, tested through a weakness-keyed protocol. The mission for
-v0.2 is different: OpenModels must discover whether a *security boundary* can
+v0.2 is different: OpenSystem must discover whether a *security boundary* can
 be crossed — specifically, whether an actor without entitlement can cause a
 protected resource to be accessed, consumed, modified, or disclosed.
 

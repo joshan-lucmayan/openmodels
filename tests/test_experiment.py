@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from openmodels.experiment.engine import ExperimentEngine
-from openmodels.models import Hypothesis, HypothesisStatus, TestOutcome
-from openmodels.policy.engine import PolicyEnforcer
-from openmodels.policy.models import Operation, Policy
+from opensystem import VERSION
+from opensystem.experiment.engine import ExperimentEngine
+from opensystem.models import Hypothesis, HypothesisStatus, TestOutcome
+from opensystem.policy.engine import PolicyEnforcer
+from opensystem.policy.models import Operation, Policy
 
 
 def test_experiment_success_persisted(store, mock_target, policy):
@@ -23,7 +24,7 @@ def test_experiment_success_persisted(store, mock_target, policy):
     experiment = engine.run(hyp, mock_target, target_model)
     assert experiment.outcome == TestOutcome.SUCCESS
     assert experiment.completed_at is not None
-    assert experiment.openmodels_version == "0.1.0"
+    assert experiment.opensystem_version == VERSION
 
     persisted = store.get_experiments_by_hypothesis(hyp.id)
     assert len(persisted) == 1
@@ -77,7 +78,7 @@ def test_policy_violation_blocks_experiment(store, mock_target):
     )
     store.save_hypothesis(hyp)
 
-    from openmodels.policy.engine import PolicyViolation
+    from opensystem.policy.engine import PolicyViolation
 
     try:
         engine.run(hyp, mock_target, target_model)

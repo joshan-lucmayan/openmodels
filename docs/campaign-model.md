@@ -1,12 +1,12 @@
-# OpenModels — Campaign Model (v0.2)
+# OpenSystem — Campaign Model (v0.2)
 
 This document defines the adversarial campaign architecture — the v0.2
-evolution of OpenModels from a weakness-oriented loop into a
+evolution of OpenSystem from a weakness-oriented loop into a
 security-boundary-oriented campaign engine.
 
 ## Mission
 
-OpenModels is an attacker-oriented adversarial testing system. Its core
+OpenSystem is an attacker-oriented adversarial testing system. Its core
 question is:
 
 > **Can an actor who is not entitled to a protected resource cause that
@@ -65,7 +65,7 @@ Actor(
 ```
 
 Actor privileges are NEVER assumed from client-supplied values; they are
-declared in the entitlement model, and OpenModels investigates whether the
+declared in the entitlement model, and OpenSystem investigates whether the
 target actually enforces them.
 
 ### Entitlement
@@ -192,17 +192,17 @@ Violation A → Enforcement A → Violation B → Enforcement B → ...
 ## CLI
 
 ```
-openmodels target add <name> --adapter mock --org ACME --env staging
-openmodels campaign create <adapter> <name>
-openmodels campaign run <campaign_id>
-openmodels campaign enforce <campaign_id>
-openmodels campaign graph <campaign_id>
-openmodels campaign list
-openmodels campaign show <campaign_id>
+opensystem target add <name> --adapter mock --org ACME --env staging
+opensystem campaign create <adapter> <name>
+opensystem campaign run <campaign_id>
+opensystem campaign enforce <campaign_id>
+opensystem campaign graph <campaign_id>
+opensystem campaign list
+opensystem campaign show <campaign_id>
 ```
 
 ## Status Vocabulary
 
-Campaigns report evidence-based status. OpenModels never claims a target is
+Campaigns report evidence-based status. OpenSystem never claims a target is
 "secure"; it reports which boundaries were tested, held, or crossed, and what
 remains untested.

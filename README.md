@@ -1,22 +1,22 @@
-# OpenModels
+# OpenSystem
 
-**OpenModels is an evolving adversarial intelligence platform.**
+**OpenSystem is an evolving adversarial intelligence platform.**
 
-OpenModels is designed to think like an exceptional attacker. It continuously
+OpenSystem is designed to think like an exceptional attacker. It continuously
 constructs a model of a target system, forms hypotheses about weaknesses,
 plans and executes tests, learns from both success and failure, and evolves.
 
-> **Find weaknesses.** The defender eliminates them. OpenModels evolves and
+> **Find weaknesses.** The defender eliminates them. OpenSystem evolves and
 > searches for new weaknesses.
 
-OpenModels is **not**:
+OpenSystem is **not**:
 - a vulnerability scanner
 - a collection of scripts
 - a penetration-testing checklist
 - an AI chatbot
 - a single-purpose cybersecurity tool
 
-OpenModels is an **adversarial reasoning and testing engine** capable of
+OpenSystem is an **adversarial reasoning and testing engine** capable of
 continuously searching for weaknesses in complex systems — web applications,
 APIs, authentication and authorization systems, cloud infrastructure,
 distributed systems, AI and agentic systems, and eventually simulations and
@@ -41,7 +41,7 @@ This is **v0.2** — the adversarial campaign engine. It provides:
 - A functional CLI
 - Documentation-first architecture
 
-OpenModels does **not** yet claim to be an autonomous attacker. The current
+OpenSystem does **not** yet claim to be an autonomous attacker. The current
 reasoning components are deterministic and mock-driven by design; the
 architecture makes it possible to replace them with increasingly capable
 reasoning systems later.
@@ -51,14 +51,14 @@ reasoning systems later.
 ```console
 $ python3 -m venv .venv
 $ .venv/bin/pip install -e ".[dev]"
-$ .venv/bin/openmodels init
-$ .venv/bin/openmodels target add premium-svc --adapter mock --org ACME --env staging
-$ .venv/bin/openmodels campaign create mock premium-boundary
-$ .venv/bin/openmodels campaign run <campaign_id>
-$ .venv/bin/openmodels campaign graph <campaign_id>
-$ .venv/bin/openmodels finding list
-$ .venv/bin/openmodels knowledge search "authorization"
-$ .venv/bin/openmodels status
+$ .venv/bin/opensystem init
+$ .venv/bin/opensystem target add premium-svc --adapter mock --org ACME --env staging
+$ .venv/bin/opensystem campaign create mock premium-boundary
+$ .venv/bin/opensystem campaign run <campaign_id>
+$ .venv/bin/opensystem campaign graph <campaign_id>
+$ .venv/bin/opensystem finding list
+$ .venv/bin/opensystem knowledge search "authorization"
+$ .venv/bin/opensystem status
 ```
 
 ## Philosophy
@@ -66,12 +66,12 @@ $ .venv/bin/openmodels status
 The ultimate loop:
 
 ```
-OPENMODELS (attacker) → FIND WEAKNESS → DEFENDER (fix) → HARDENED TARGET
+OPENSYSTEM (attacker) → FIND WEAKNESS → DEFENDER (fix) → HARDENED TARGET
      ↑                                                            │
      └─────────────────────── EVOLVE ◄────────────────────────────┘
 ```
 
-OpenModels is the adversarial pressure that forces the defender to become
+OpenSystem is the adversarial pressure that forces the defender to become
 better. Every failed attack and every blocked path is valuable information.
 
 ## Documentation

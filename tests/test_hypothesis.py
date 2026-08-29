@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from openmodels.models import Hypothesis, HypothesisStatus, TestOutcome
-from openmodels.hypothesis.engine import HypothesisEngine
+from opensystem.models import Hypothesis, HypothesisStatus, TestOutcome
+from opensystem.hypothesis.engine import HypothesisEngine
 
 
 def test_hypothesis_creation_and_persistence(store):
@@ -29,12 +29,12 @@ def test_evaluate_success_accepts_hypothesis(store):
     engine = HypothesisEngine(store)
     engine.save(hyp)
 
-    from openmodels.models import Experiment, TestSpec
+    from opensystem.models import Experiment, TestSpec
 
     exp = Experiment(
         hypothesis_id=hyp.id,
         target_id="t1",
-        openmodels_version="0.1.0",
+        opensystem_version="0.1.0",
         test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
         outcome=TestOutcome.SUCCESS,
     )
@@ -52,12 +52,12 @@ def test_evaluate_failure_rejects_hypothesis(store):
     engine = HypothesisEngine(store)
     engine.save(hyp)
 
-    from openmodels.models import Experiment, TestSpec
+    from opensystem.models import Experiment, TestSpec
 
     exp = Experiment(
         hypothesis_id=hyp.id,
         target_id="t1",
-        openmodels_version="0.1.0",
+        opensystem_version="0.1.0",
         test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
         outcome=TestOutcome.FAILURE,
     )
@@ -70,12 +70,12 @@ def test_evaluate_inconclusive(store):
     engine = HypothesisEngine(store)
     engine.save(hyp)
 
-    from openmodels.models import Experiment, TestSpec
+    from opensystem.models import Experiment, TestSpec
 
     exp = Experiment(
         hypothesis_id=hyp.id,
         target_id="t1",
-        openmodels_version="0.1.0",
+        opensystem_version="0.1.0",
         test=TestSpec(name="t"),
         outcome=TestOutcome.INCONCLUSIVE,
     )

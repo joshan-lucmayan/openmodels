@@ -5,7 +5,7 @@
 
 ## Context
 
-OpenModels requires that the research process be represented as explicit,
+OpenSystem requires that the research process be represented as explicit,
 structured, persistable entities — never unstructured text. The entities
 (hypothesis, observation, experiment, evidence, finding, defense, regression,
 knowledge, evolution event) must validate, serialize cleanly to SQLite, and
@@ -23,7 +23,7 @@ support future reasoning.
 ## Decision
 
 Define all core entities as **pydantic v2 `BaseModel`** classes in a single
-`openmodels/models.py` module.
+`opensystem/models.py` module.
 
 ## Rationale
 

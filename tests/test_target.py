@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openmodels.models import TestOutcome, TestSpec
+from opensystem.models import TestOutcome, TestSpec
 
 
 def test_discover_builds_target_model(mock_target):

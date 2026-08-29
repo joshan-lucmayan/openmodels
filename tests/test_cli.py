@@ -4,14 +4,15 @@ from __future__ import annotations
 
 from click.testing import CliRunner
 
-from openmodels.cli.commands import cli
+from opensystem import VERSION
+from opensystem.cli.commands import cli
 
 
 def test_version():
     runner = CliRunner()
     result = runner.invoke(cli, ["--version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    assert VERSION in result.output
 
 
 def test_target_list():

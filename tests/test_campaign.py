@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from openmodels.campaign.engine import CampaignEngine
-from openmodels.campaign.discovery import AttackSurfaceDiscovery
-from openmodels.campaign.objectives import InvariantTester, ObjectiveFormulator
-from openmodels.models import (
+from opensystem.campaign.engine import CampaignEngine
+from opensystem.campaign.discovery import AttackSurfaceDiscovery
+from opensystem.campaign.objectives import InvariantTester, ObjectiveFormulator
+from opensystem.models import (
     AttackObjective,
     CampaignStatus,
     EntitlementDecision,
@@ -78,7 +78,7 @@ def test_invariant_tester_detects_violation(store, mock_target):
     premium = mock_target.resources()["premium_model"]
     surface = store.get_attack_surface(target.id) or AttackSurfaceDiscovery(store).discover(mock_target, target)
 
-    from openmodels.models import SecurityInvariant
+    from opensystem.models import SecurityInvariant
 
     invariant = SecurityInvariant(actor_id=free.id, resource_id=premium.id)
     store.save_invariant(invariant)
@@ -105,7 +105,7 @@ def test_invariant_tester_passes_secure_boundary(store, mock_target):
     admin_panel = mock_target.resources()["admin_panel"]
     surface = store.get_attack_surface(target.id) or AttackSurfaceDiscovery(store).discover(mock_target, target)
 
-    from openmodels.models import SecurityInvariant
+    from opensystem.models import SecurityInvariant
 
     invariant = SecurityInvariant(actor_id=free.id, resource_id=admin_panel.id)
     store.save_invariant(invariant)
