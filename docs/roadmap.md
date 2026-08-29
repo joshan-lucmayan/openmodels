@@ -27,8 +27,19 @@ Every release should improve the adversarial engine.
       target model, evolution, methodology, security model, glossary,
       roadmap, ADRs, component docs)
 
-## v0.2 — State-Aware Testing
+## v0.2 — Adversarial Campaign Architecture
 
+- [x] Protected resource model (`ProtectedResource`)
+- [x] Actor and entitlement models (`Actor`, `Entitlement`)
+- [x] Security invariants (`SecurityInvariant`) tested across interfaces
+- [x] Structured attack objectives (`AttackObjective`)
+- [x] Campaign entity (complete, resumable assessment)
+- [x] Attack-surface discovery (interfaces, resources, auth states, transitions)
+- [x] Attack graph / paths (actor → interface → resource, alternative paths)
+- [x] Campaign engine (CREATE → DISCOVER → FORMULATE → TEST → REPORT)
+- [x] Adversarial improvement cycle (enforce → revalidate)
+- [x] Target configuration via CLI (`target add`)
+- [x] Mock target security-boundary model (enforcement per interface)
 - [ ] State tracking across experiments (retain target state between rounds)
 - [ ] Multi-step attack planning (hypothesis chains)
 - [ ] Initial web/API target adapter (HTTP-based)

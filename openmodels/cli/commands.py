@@ -144,6 +144,70 @@ def target_inspect(ctx: Context, name: str) -> None:
     click.echo(f"Created:     {target_model.created_at}")
 
 
+@target.command("add")
+@click.argument("name")
+@click.option("--type", "target_type", default="generic", help="Target type.")
+@click.option("--adapter", default="mock", help="Target adapter name.")
+@click.option("--org", default="", help="Organization.")
+@click.option("--env", default="development", help="Environment.")
+@click.option("--desc", default="", help="Target description.")
+@click.option("--interfaces", default="", help="Comma-separated interface names.")
+@click.pass_context
+def target_add(
+    click_ctx: click.Context,
+    name: str,
+    target_type: str,
+    adapter: str,
+    org: str,
+    env: str,
+    desc: str,
+    interfaces: str,
+) -> None:
+    """Register a target configuration for campaign use.
+
+    The configuration is stored in the data directory and describes what the
+    target is, not a specific website. The adapter must be a registered
+    adapter type.
+    """
+    ctx = click_ctx.ensure_object(Context)
+    try:
+        ctx.registry.get(adapter)
+    except KeyError:
+        click.echo(f"Error: unknown adapter '{adapter}'.", err=True)
+        sys.exit(1)
+
+    from openmodels.models import TargetConfig
+
+    config = TargetConfig(
+        name=name,
+        target_type=target_type,
+        adapter=adapter,
+        organization=org,
+        environment=env,
+        description=desc,
+        available_interfaces=(
+            [i.strip() for i in interfaces.split(",") if i.strip()]
+            if interfaces else []
+        ),
+    )
+    configs = _load_target_configs(ctx)
+    configs[name] = config.model_dump(mode="json")
+    _save_target_configs(ctx, configs)
+    click.echo(f"Target '{name}' registered (adapter={adapter}, type={target_type}).")
+
+
+def _load_target_configs(ctx: Context) -> dict:
+    p = data_home() / "targets.json"
+    if p.exists():
+        return json.loads(p.read_text())
+    return {}
+
+
+def _save_target_configs(ctx: Context, configs: dict) -> None:
+    p = data_home() / "targets.json"
+    p.write_text(json.dumps(configs, indent=2, default=str))
+
+
 # --------------------------------------------------------------------------- #
 # research
 # --------------------------------------------------------------------------- #
@@ -316,6 +380,230 @@ def attack_list(ctx: Context) -> None:
     planner = default_planner(ctx.store)
     for s in planner.list_strategies():
         click.echo(f"[{s.family:20s}] {s.name:25s} {s.description}")
+
+
+# --------------------------------------------------------------------------- #
+# campaign
+# --------------------------------------------------------------------------- #
+
+@cli.group()
+def campaign() -> None:
+    """Manage adversarial campaigns."""
+
+
+@campaign.command("create")
+@click.argument("target")
+@click.argument("name")
+@click.option("--desc", default="", help="Campaign description.")
+@click.option("--max-experiments", default=100, type=int,
+              help="Max experiments in the campaign.")
+@pass_ctx
+def campaign_create(
+    ctx: Context, target: str, name: str, desc: str, max_experiments: int
+) -> None:
+    """Create a campaign against a target adapter."""
+    try:
+        adapter = ctx.registry.create(target)
+    except KeyError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+    from openmodels.campaign.engine import CampaignEngine
+    from openmodels.policy.models import Policy
+
+    engine = CampaignEngine(ctx.store, policy=Policy(
+        target_name=target, max_experiments=max_experiments,
+    ))
+
+    target_model = adapter.discover()
+
+    # Build actors and resources from the adapter's security model.
+    actors = list(getattr(adapter, "actors", lambda: {})().values())
+    resources = list(getattr(adapter, "resources", lambda: {})().values())
+
+    campaign = engine.create_campaign(
+        name=name,
+        target_adapter=adapter,
+        target=target_model,
+        description=desc,
+        actors=actors,
+        resources=resources,
+    )
+    engine.discover(campaign, adapter, target_model)
+
+    objectives = ctx.store.list_objectives(campaign.id)
+    click.echo(f"Campaign created: {campaign.id[:8]} ({name})")
+    click.echo(f"  Target:     {target_model.name}")
+    click.echo(f"  Actors:     {', '.join(campaign.actor_ids) or '(none)'}")
+    click.echo(f"  Resources:  {', '.join(campaign.resource_ids) or '(none)'}")
+    click.echo(f"  Objectives: {len(objectives)} formulated")
+    click.echo("Run it with: openmodels campaign run <campaign_id>")
+
+
+@campaign.command("run")
+@click.argument("campaign_id")
+@pass_ctx
+def campaign_run(ctx: Context, campaign_id: str) -> None:
+    """Run a campaign to completion."""
+    from openmodels.campaign.engine import CampaignEngine
+
+    engine = CampaignEngine(ctx.store)
+    campaigns = ctx.store.list_campaigns()
+    full_id = _resolve_prefix(campaigns, campaign_id, "campaign")
+    campaign = engine.resume(full_id)
+    if campaign is None:
+        click.echo("Campaign not found.", err=True)
+        sys.exit(1)
+
+    adapter = ctx.registry.create(campaign.target_adapter)
+    target_model = adapter.discover()
+    if target_model.id != campaign.target_id:
+        target_model = ctx.store.get_target(campaign.target_id) or target_model
+
+    report = engine.run(campaign, adapter, target_model)
+
+    click.echo("=== Campaign Report ===")
+    click.echo(f"Campaign:         {report.campaign_id[:8]}")
+    click.echo(f"Status:           {report.status.value}")
+    click.echo(f"Actors:           {report.actors}")
+    click.echo(f"Protected res.:   {report.protected_resources}")
+    click.echo(f"Objectives:       {report.objectives_formulated}")
+    click.echo(f"  achieved:       {report.objectives_achieved}")
+    click.echo(f"Invariants tested:{report.invariants_tested}")
+    click.echo(f"  passed (held):  {report.invariants_passed}")
+    click.echo(f"  violated:       {report.invariants_violated}")
+    click.echo(f"Paths tested:     {report.paths_tested}")
+    click.echo(f"Findings:         {report.findings_created} ({report.open_findings} open)")
+    click.echo("Findings: openmodels finding list")
+
+
+@campaign.command("enforce")
+@click.argument("campaign_id")
+@pass_ctx
+def campaign_enforce(ctx: Context, campaign_id: str) -> None:
+    """Run the adversarial improvement cycle for a campaign.
+
+    Runs the campaign, then simulates the defender enforcing each violated
+    security boundary, then re-runs the campaign to show the boundaries now
+    hold (regression).
+    """
+    from openmodels.campaign.engine import CampaignEngine
+
+    engine = CampaignEngine(ctx.store)
+    campaigns = ctx.store.list_campaigns()
+    full_id = _resolve_prefix(campaigns, campaign_id, "campaign")
+    campaign = engine.resume(full_id)
+    if campaign is None:
+        click.echo("Campaign not found.", err=True)
+        sys.exit(1)
+
+    adapter = ctx.registry.create(campaign.target_adapter)
+    target_model = ctx.store.get_target(campaign.target_id) or adapter.discover()
+
+    results = engine.enforce_and_revalidate(campaign, adapter, target_model)
+
+    click.echo("=== Adversarial Improvement Cycle ===")
+    r1 = results["first_round"]
+    r2 = results["second_round"]
+    click.echo(f"Round 1: {r1.invariants_violated} boundary violations, "
+               f"{r1.findings_created} findings.")
+    click.echo(f"Defender enforced {len(results['enforced'])} boundaries:")
+    for e in results["enforced"]:
+        click.echo(f"  - {e['interface']} → {e['resource']}")
+    click.echo(f"Round 2 (revalidated): {r2.invariants_violated} violations, "
+               f"{r2.invariants_passed} held, {r2.findings_created} new findings.")
+    click.echo(
+        "Security boundary evolution complete: previously-violated "
+        "boundaries now hold."
+    )
+
+
+@campaign.command("graph")
+@click.argument("campaign_id")
+@pass_ctx
+def campaign_graph(ctx: Context, campaign_id: str) -> None:
+    """Render the attack graph for a campaign."""
+    from openmodels.campaign.graph import AttackGraph
+
+    campaigns = ctx.store.list_campaigns()
+    full_id = _resolve_prefix(campaigns, campaign_id, "campaign")
+    campaign = ctx.store.get_campaign(full_id)
+    if campaign is None:
+        click.echo("Campaign not found.", err=True)
+        sys.exit(1)
+
+    adapter = ctx.registry.create(campaign.target_adapter)
+    actors = [
+        ctx.store.get_actor(a) for a in campaign.actor_ids
+        if ctx.store.get_actor(a) is not None
+    ]
+    resources = [
+        ctx.store.get_protected_resource(r) for r in campaign.resource_ids
+        if ctx.store.get_protected_resource(r) is not None
+    ]
+    tested = ctx.store.list_attack_paths(actor_ids=campaign.actor_ids)
+
+    graph = AttackGraph(ctx.store).build(
+        campaign.target_id, actors, resources, adapter, tested
+    )
+    click.echo(f"Attack graph for {campaign.name} ({full_id[:8]})")
+    for p in graph["paths"]:
+        click.echo(
+            f"  {p['actor']:12s} → {p['interface']:12s} → "
+            f"{p['resource']:16s} [decision={p['decision']}, "
+            f"outcome={p['outcome']}]"
+        )
+
+
+@campaign.command("list")
+@pass_ctx
+def campaign_list(ctx: Context) -> None:
+    """List campaigns."""
+    campaigns = ctx.store.list_campaigns()
+    if not campaigns:
+        click.echo("No campaigns yet.")
+        return
+    for c in campaigns:
+        click.echo(
+            f"[{c.status.value}] {c.id[:8]} | {c.name} | target={c.target_adapter}"
+        )
+
+
+@campaign.command("show")
+@click.argument("campaign_id")
+@pass_ctx
+def campaign_show(ctx: Context, campaign_id: str) -> None:
+    """Show campaign details, including objectives and invariants."""
+    campaigns = ctx.store.list_campaigns()
+    full_id = _resolve_prefix(campaigns, campaign_id, "campaign")
+    campaign = ctx.store.get_campaign(full_id)
+    if campaign is None:
+        click.echo("Campaign not found.", err=True)
+        sys.exit(1)
+
+    click.echo(f"Campaign: {campaign.id} ({campaign.name})")
+    click.echo(f"  Status:   {campaign.status.value}")
+    click.echo(f"  Target:   {campaign.target_id}")
+    click.echo(f"  Adapter:  {campaign.target_adapter}")
+    click.echo(f"  Created:  {campaign.created_at}")
+
+    objectives = ctx.store.list_objectives(campaign.id)
+    click.echo(f"  Objectives ({len(objectives)}):")
+    for o in objectives:
+        actor = ctx.store.get_actor(o.actor_id)
+        resource = ctx.store.get_protected_resource(o.resource_id)
+        a = actor.name if actor else o.actor_id
+        r = resource.name if resource else o.resource_id
+        click.echo(
+            f"    [{o.status.value}] {a} → {r} "
+            f"(invariant {o.security_invariant_id[:8]})"
+        )
+
+    surface = ctx.store.get_attack_surface(campaign.target_id)
+    if surface:
+        click.echo(f"  Attack surface ({len(surface.interfaces)} interfaces):")
+        for i in surface.interfaces:
+            click.echo(f"    - {i.get('name')}")
 
 
 # --------------------------------------------------------------------------- #

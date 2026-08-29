@@ -50,7 +50,8 @@ Policy Enforcer (authorization boundary)
 
 | Component | Module | Responsibility |
 |---|---|---|
-| Adversarial Engine | `openmodels/core/engine.py` | Orchestrates the loop; runs research sessions. |
+| Adversarial Engine | `openmodels/core/engine.py` | Orchestrates the v0.1 loop; runs research sessions. |
+| Campaign Engine | `openmodels/campaign/` | Orchestrates v0.2 adversarial campaigns (boundary testing). |
 | Target Abstraction | `openmodels/target/interface.py` | The `TargetAdapter` contract. |
 | Target Adapters | `openmodels/target/{mock,registry}.py` | Concrete targets + registration. |
 | Observation Engine | `openmodels/observation/engine.py` | Captures and persists observations. |
@@ -83,8 +84,22 @@ All entities are defined in `openmodels/models.py` as pydantic models:
 - `EvolutionEvent` — an auditable evolution step
 - `ResearchReport` — an evidence-based session summary
 
-See [`target-model.md`](target-model.md) for the target model and
-[`attack-model.md`](attack-model.md) for the attack model.
+### v0.2 campaign entities
+
+- `ProtectedResource` — something valuable that actors without entitlement
+  must NOT access
+- `Actor` / `Entitlement` — who is trying to access, and what they are
+  declared allowed to do
+- `SecurityInvariant` — a boundary that MUST hold, tested across interfaces
+- `AttackObjective` — a structured objective (actor, resource, invariant)
+- `AttackSurface` / `AttackPath` / `AttackGraph` — the discovered surface and
+  the graph of alternative paths
+- `Campaign` / `CampaignReport` — the complete resumable assessment and its
+  evidence-based result
+
+See [`target-model.md`](target-model.md) for the target model,
+[`attack-model.md`](attack-model.md) for the attack model, and
+[`campaign-model.md`](campaign-model.md) for the campaign architecture.
 
 ## The Adversarial Loop
 

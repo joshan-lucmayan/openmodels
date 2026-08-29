@@ -28,7 +28,15 @@ from typing import Any
 
 from openmodels import VERSION
 from openmodels.models import (
+    Actor,
+    ActorKind,
+    AttackObjective,
+    AttackPath,
+    AttackSurface,
+    Campaign,
+    CampaignStatus,
     Defense,
+    Entitlement,
     Evidence,
     EvolutionEvent,
     EvolutionTrigger,
@@ -37,11 +45,16 @@ from openmodels.models import (
     FindingStatus,
     Hypothesis,
     HypothesisStatus,
+    InvariantStatus,
     Knowledge,
     KnowledgeKind,
+    ObjectiveStatus,
     Observation,
+    ProtectedResource,
+    ProtectedResourceType,
     Regression,
     ResearchReport,
+    SecurityInvariant,
     Severity,
     Target,
     TestOutcome,
@@ -218,10 +231,87 @@ class KnowledgeStore:
             id                  TEXT PRIMARY KEY,
             trigger             TEXT NOT NULL,
             reason              TEXT NOT NULL,
-            from_hypothesis_id  TEXT,
-            to_hypothesis_id    TEXT,
+            from_hypothesis_id  TEXT REFERENCES hypotheses(id),
+            to_hypothesis_id    TEXT REFERENCES hypotheses(id),
             provenance          TEXT DEFAULT '',
             created_at          TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS protected_resources (
+            id             TEXT PRIMARY KEY,
+            name           TEXT NOT NULL,
+            resource_type  TEXT NOT NULL,
+            value          TEXT DEFAULT '',
+            description    TEXT DEFAULT '',
+            interfaces     TEXT DEFAULT '[]'
+        );
+
+        CREATE TABLE IF NOT EXISTS actors (
+            id           TEXT PRIMARY KEY,
+            name         TEXT NOT NULL,
+            kind         TEXT NOT NULL,
+            description  TEXT DEFAULT '',
+            entitlements TEXT DEFAULT '[]'
+        );
+
+        CREATE TABLE IF NOT EXISTS entitlements (
+            id          TEXT PRIMARY KEY,
+            actor_id    TEXT NOT NULL,
+            resource_id TEXT NOT NULL,
+            action      TEXT DEFAULT 'access'
+        );
+
+        CREATE TABLE IF NOT EXISTS security_invariants (
+            id               TEXT PRIMARY KEY,
+            actor_id         TEXT NOT NULL,
+            resource_id      TEXT NOT NULL,
+            forbidden_action TEXT DEFAULT 'access',
+            statement        TEXT DEFAULT '',
+            status           TEXT NOT NULL DEFAULT 'UNTESTED'
+        );
+
+        CREATE TABLE IF NOT EXISTS attack_objectives (
+            id                   TEXT PRIMARY KEY,
+            campaign_id          TEXT NOT NULL,
+            actor_id             TEXT NOT NULL,
+            resource_id          TEXT NOT NULL,
+            security_invariant_id TEXT NOT NULL,
+            success_condition    TEXT DEFAULT '',
+            status               TEXT NOT NULL DEFAULT 'FORMULATED'
+        );
+
+        CREATE TABLE IF NOT EXISTS campaigns (
+            id               TEXT PRIMARY KEY,
+            name             TEXT NOT NULL,
+            target_id        TEXT NOT NULL,
+            target_adapter   TEXT DEFAULT '',
+            description      TEXT DEFAULT '',
+            actor_ids        TEXT DEFAULT '[]',
+            resource_ids     TEXT DEFAULT '[]',
+            objective_ids    TEXT DEFAULT '[]',
+            invariant_ids    TEXT DEFAULT '[]',
+            status           TEXT NOT NULL DEFAULT 'CREATED',
+            created_at       TEXT NOT NULL,
+            started_at       TEXT,
+            completed_at     TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS attack_surfaces (
+            id            TEXT PRIMARY KEY,
+            target_id     TEXT NOT NULL,
+            interfaces    TEXT DEFAULT '[]',
+            resources     TEXT DEFAULT '[]',
+            auth_states   TEXT DEFAULT '[]',
+            transitions   TEXT DEFAULT '[]'
+        );
+
+        CREATE TABLE IF NOT EXISTS attack_paths (
+            id          TEXT PRIMARY KEY,
+            actor_id    TEXT NOT NULL,
+            interface   TEXT NOT NULL,
+            resource_id TEXT NOT NULL,
+            operation   TEXT DEFAULT 'access',
+            outcome     TEXT NOT NULL DEFAULT 'INCONCLUSIVE'
         );
 
         CREATE INDEX IF NOT EXISTS idx_hypotheses_target ON hypotheses(target_id);
@@ -687,6 +777,244 @@ class KnowledgeStore:
                 to_hypothesis_id=r["to_hypothesis_id"],
                 provenance=r["provenance"],
                 created_at=datetime.datetime.fromisoformat(r["created_at"]),
+            )
+            for r in cur.fetchall()
+        ]
+
+    # ------------------------------------------------------------------ #
+    # CRUD — Campaign entities
+    # ------------------------------------------------------------------ #
+
+    def save_protected_resource(self, r: ProtectedResource) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO protected_resources "
+            "(id, name, resource_type, value, description, interfaces) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (r.id, r.name, r.resource_type.value, r.value,
+             r.description, _j(r.interfaces)),
+        )
+        self._conn.commit()
+
+    def save_actor(self, a: Actor) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO actors "
+            "(id, name, kind, description, entitlements) VALUES (?, ?, ?, ?, ?)",
+            (a.id, a.name, a.kind.value, a.description, _j(a.entitlements)),
+        )
+        self._conn.commit()
+
+    def get_actor(self, actor_id: str) -> Actor | None:
+        cur = self._conn.execute("SELECT * FROM actors WHERE id = ?", (actor_id,))
+        r = cur.fetchone()
+        if r is None:
+            return None
+        return Actor(
+            id=r["id"],
+            name=r["name"],
+            kind=ActorKind(r["kind"]),
+            description=r["description"],
+            entitlements=_uj(r["entitlements"]),
+        )
+
+    def list_actors(self) -> list[Actor]:
+        cur = self._conn.execute("SELECT * FROM actors ORDER BY name")
+        return [
+            Actor(
+                id=r["id"],
+                name=r["name"],
+                kind=ActorKind(r["kind"]),
+                description=r["description"],
+                entitlements=_uj(r["entitlements"]),
+            )
+            for r in cur.fetchall()
+        ]
+
+    def get_protected_resource(self, resource_id: str) -> ProtectedResource | None:
+        cur = self._conn.execute(
+            "SELECT * FROM protected_resources WHERE id = ?", (resource_id,)
+        )
+        r = cur.fetchone()
+        if r is None:
+            return None
+        return ProtectedResource(
+            id=r["id"],
+            name=r["name"],
+            resource_type=ProtectedResourceType(r["resource_type"]),
+            value=r["value"],
+            description=r["description"],
+            interfaces=_uj(r["interfaces"]),
+        )
+
+    def save_entitlement(self, e: Entitlement) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO entitlements "
+            "(id, actor_id, resource_id, action) VALUES (?, ?, ?, ?)",
+            (e.id, e.actor_id, e.resource_id, e.action),
+        )
+        self._conn.commit()
+
+    def save_invariant(self, inv: SecurityInvariant) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO security_invariants "
+            "(id, actor_id, resource_id, forbidden_action, statement, status) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (inv.id, inv.actor_id, inv.resource_id, inv.forbidden_action,
+             inv.statement, inv.status.value),
+        )
+        self._conn.commit()
+
+    def update_invariant_status(self, invariant_id: str, status: InvariantStatus) -> None:
+        self._conn.execute(
+            "UPDATE security_invariants SET status = ? WHERE id = ?",
+            (status.value, invariant_id),
+        )
+        self._conn.commit()
+
+    def save_objective(self, o: AttackObjective) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO attack_objectives "
+            "(id, campaign_id, actor_id, resource_id, security_invariant_id, "
+            " success_condition, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (o.id, o.campaign_id, o.actor_id, o.resource_id,
+             o.security_invariant_id, o.success_condition, o.status.value),
+        )
+        self._conn.commit()
+
+    def update_objective_status(self, objective_id: str, status: ObjectiveStatus) -> None:
+        self._conn.execute(
+            "UPDATE attack_objectives SET status = ? WHERE id = ?",
+            (status.value, objective_id),
+        )
+        self._conn.commit()
+
+    def list_objectives(self, campaign_id: str) -> list[AttackObjective]:
+        cur = self._conn.execute(
+            "SELECT * FROM attack_objectives WHERE campaign_id = ?",
+            (campaign_id,),
+        )
+        return [
+            AttackObjective(
+                id=r["id"],
+                campaign_id=r["campaign_id"],
+                actor_id=r["actor_id"],
+                resource_id=r["resource_id"],
+                security_invariant_id=r["security_invariant_id"],
+                success_condition=r["success_condition"],
+                status=ObjectiveStatus(r["status"]),
+            )
+            for r in cur.fetchall()
+        ]
+
+    def save_campaign(self, c: Campaign) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO campaigns "
+            "(id, name, target_id, target_adapter, description, actor_ids, "
+            " resource_ids, objective_ids, invariant_ids, status, created_at, "
+            " started_at, completed_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (c.id, c.name, c.target_id, c.target_adapter, c.description,
+             _j(c.actor_ids), _j(c.resource_ids), _j(c.objective_ids),
+             _j(c.invariant_ids), c.status.value, c.created_at.isoformat(),
+             c.started_at.isoformat() if c.started_at else None,
+             c.completed_at.isoformat() if c.completed_at else None),
+        )
+        self._conn.commit()
+
+    def get_campaign(self, campaign_id: str) -> Campaign | None:
+        cur = self._conn.execute(
+            "SELECT * FROM campaigns WHERE id = ?", (campaign_id,)
+        )
+        r = cur.fetchone()
+        if r is None:
+            return None
+        return Campaign(
+            id=r["id"],
+            name=r["name"],
+            target_id=r["target_id"],
+            target_adapter=r["target_adapter"],
+            description=r["description"],
+            actor_ids=_uj(r["actor_ids"]),
+            resource_ids=_uj(r["resource_ids"]),
+            objective_ids=_uj(r["objective_ids"]),
+            invariant_ids=_uj(r["invariant_ids"]),
+            status=CampaignStatus(r["status"]),
+            created_at=datetime.datetime.fromisoformat(r["created_at"]),
+            started_at=(
+                datetime.datetime.fromisoformat(r["started_at"])
+                if r["started_at"] else None
+            ),
+            completed_at=(
+                datetime.datetime.fromisoformat(r["completed_at"])
+                if r["completed_at"] else None
+            ),
+        )
+
+    def list_campaigns(self) -> list[Campaign]:
+        cur = self._conn.execute("SELECT * FROM campaigns ORDER BY created_at")
+        return [self.get_campaign(r["id"]) for r in cur.fetchall() if r]
+
+    def save_attack_surface(self, s: AttackSurface) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO attack_surfaces "
+            "(id, target_id, interfaces, resources, auth_states, transitions) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (s.id, s.target_id, _j(s.interfaces), _j(s.resources),
+             _j(s.auth_states), _j(s.transitions)),
+        )
+        self._conn.commit()
+
+    def get_attack_surface(self, target_id: str) -> AttackSurface | None:
+        cur = self._conn.execute(
+            "SELECT * FROM attack_surfaces WHERE target_id = ?",
+            (target_id,),
+        )
+        r = cur.fetchone()
+        if r is None:
+            return None
+        return AttackSurface(
+            id=r["id"],
+            target_id=r["target_id"],
+            interfaces=_uj(r["interfaces"]),
+            resources=_uj(r["resources"]),
+            auth_states=_uj(r["auth_states"]),
+            transitions=_uj(r["transitions"]),
+        )
+
+    def save_attack_path(self, p: AttackPath) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO attack_paths "
+            "(id, actor_id, interface, resource_id, operation, outcome) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (p.id, p.actor_id, p.interface, p.resource_id, p.operation,
+             p.outcome.value),
+        )
+        self._conn.commit()
+
+    def list_attack_paths(
+        self, actor_ids: list[str] | None = None, outcome: TestOutcome | None = None
+    ) -> list[AttackPath]:
+        """List attack paths, optionally filtered by actor and outcome."""
+        sql = "SELECT * FROM attack_paths"
+        clauses: list[str] = []
+        params: list = []
+        if actor_ids:
+            marks = ",".join("?" * len(actor_ids))
+            clauses.append(f"actor_id IN ({marks})")
+            params.extend(actor_ids)
+        if outcome:
+            clauses.append("outcome = ?")
+            params.append(outcome.value)
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        cur = self._conn.execute(sql, params)
+        return [
+            AttackPath(
+                id=r["id"],
+                actor_id=r["actor_id"],
+                interface=r["interface"],
+                resource_id=r["resource_id"],
+                operation=r["operation"],
+                outcome=TestOutcome(r["outcome"]),
             )
             for r in cur.fetchall()
         ]

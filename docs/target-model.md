@@ -97,3 +97,40 @@ simulations, and other computational systems.
 
 A future attacker can reconstruct the model from the knowledge store: "What
 did we previously try? What failed? What defense stopped it? What changed?"
+
+## v0.2 — Actors, Entitlements, and Protected Resources
+
+The v0.2 campaign architecture adds a security-boundary perspective to the
+target model. OpenModels models what is *protected*, who may access it, and
+whether the target actually enforces the declared boundaries.
+
+```
+Target
+ ├── Protected Resources   — what an unauthorized actor must NOT access
+ ├── Actors                — who may (or may not) be entitled
+ ├── Entitlements          — declared access rights
+ ├── Security Invariants   — boundaries that MUST hold
+ ├── Interfaces            — the surfaces where boundaries are tested
+ └── Attack surface        — the reachable graph of the above
+```
+
+### Target Configuration
+
+Deployment-time targets are described with `TargetConfig` (via
+`openmodels target add`), which records target name, type, organization,
+environment, authorized scope, available interfaces, test credentials,
+protected resources, testing policy, time window, and emergency-stop
+configuration. The core engine does NOT assume every target is a website.
+
+### Adapter Security-Boundary Protocol
+
+Adapters that model security boundaries expose additional optional methods:
+
+- `describe_resources()` — the protected resources
+- `describe_actors()` — the actors
+- `describe_interfaces()` — the reachable interfaces
+- `describe_auth_states()` / `describe_transitions()` — states and transitions
+- `entitlement_decision(actor, resource, action)` — the declared entitlement
+
+These feed attack-surface discovery and objective formulation. See
+[`campaign-model.md`](campaign-model.md).

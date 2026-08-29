@@ -24,13 +24,17 @@ scientific systems.
 
 ## Status
 
-This is the **v0.1 foundation**. It provides:
+This is **v0.2** — the adversarial campaign engine. It provides:
 
 - The core adversarial loop (`OBSERVE → MODEL → HYPOTHESIZE → PLAN → TEST →
   OBSERVE → ANALYZE → UPDATE KNOWLEDGE → GENERATE NEXT HYPOTHESIS`)
+- **Campaign architecture** centered on the question *"can an actor who is
+  NOT entitled to a protected resource cause that resource to be accessed,
+  consumed, modified, or disclosed?"*
+- Protected resource, actor, entitlement, security-invariant, and objective
+  models (not hardcoded to any one scenario or URL)
+- Attack-surface discovery and attack graphs with alternative paths
 - A generic, technology-agnostic target abstraction
-- Structured, persistable entities: hypotheses, observations, experiments,
-  evidence, findings, defenses, regressions, knowledge
 - A persistent SQLite knowledge store supporting historical reasoning
 - An explicit, auditable evolution mechanism
 - A separate policy/authorization boundary for deployment
@@ -48,8 +52,10 @@ reasoning systems later.
 $ python3 -m venv .venv
 $ .venv/bin/pip install -e ".[dev]"
 $ .venv/bin/openmodels init
-$ .venv/bin/openmodels target list
-$ .venv/bin/openmodels research start --target mock --rounds 3
+$ .venv/bin/openmodels target add premium-svc --adapter mock --org ACME --env staging
+$ .venv/bin/openmodels campaign create mock premium-boundary
+$ .venv/bin/openmodels campaign run <campaign_id>
+$ .venv/bin/openmodels campaign graph <campaign_id>
 $ .venv/bin/openmodels finding list
 $ .venv/bin/openmodels knowledge search "authorization"
 $ .venv/bin/openmodels status

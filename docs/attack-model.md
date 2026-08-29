@@ -119,3 +119,29 @@ OpenModels never claims a target is "secure". It reports what it did:
 > tested or remain untested."
 
 Statuses distinguish: TESTED, VERIFIED, FAILED, BLOCKED, UNKNOWN, UNTESTED.
+
+## v0.2 — The Security-Boundary Perspective
+
+The campaign architecture reframes the attack model around protected
+resources and entitlements. The fundamental question becomes:
+
+> "Can an actor who is NOT entitled to a protected resource cause that
+> resource to be accessed, consumed, modified, or disclosed?"
+
+Instead of "can weakness X be demonstrated?", OpenModels asks: for each
+actor/resource pair where the actor lacks entitlement, does the target
+actually enforce the boundary across every interface that exposes the
+resource?
+
+The attack model is now:
+
+```
+Actor → Interface → Operation → Authorization boundary → Protected resource
+```
+
+Each path is an `AttackPath` with an entitlement decision and a test outcome.
+Boundaries may hold on some interfaces and fail on others — alternative paths
+are represented separately in the attack graph.
+
+See [`campaign-model.md`](campaign-model.md) for the full campaign
+architecture.
