@@ -1,6 +1,6 @@
-2# OpenSystem — Architecture
+# OpenSystem — Architecture
 
-This document describes the system architecture of OpenSystem at v0.1. It is
+This document describes the system architecture of OpenSystem at v0.3. It is
 the authoritative description of component responsibilities.
 
 ## Overview

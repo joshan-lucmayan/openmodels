@@ -24,7 +24,8 @@ scientific systems.
 
 ## Status
 
-This is **v0.2** — the adversarial campaign engine. It provides:
+This is **v0.3** — the adversarial campaign engine plus the proof-credential
+system. It provides:
 
 - The core adversarial loop (`OBSERVE → MODEL → HYPOTHESIZE → PLAN → TEST →
   OBSERVE → ANALYZE → UPDATE KNOWLEDGE → GENERATE NEXT HYPOTHESIS`)
@@ -34,10 +35,16 @@ This is **v0.2** — the adversarial campaign engine. It provides:
 - Protected resource, actor, entitlement, security-invariant, and objective
   models (not hardcoded to any one scenario or URL)
 - Attack-surface discovery and attack graphs with alternative paths
-- A generic, technology-agnostic target abstraction
-- A persistent SQLite knowledge store supporting historical reasoning
+- **Impact verification**: independent re-probes confirming a finding
+  genuinely reached the protected resource
+- **Show-once proof sessions**: single-display, hash-stored, revocable proof
+  credentials bound to confirmed findings (authorized test target only)
+- **Evidence-based case studies** for confirmed findings
+- A generic, technology-agnostic target abstraction with explicit,
+  declared adapter capabilities
+- A persistent SQLite knowledge store with tested additive migrations
 - An explicit, auditable evolution mechanism
-- A separate policy/authorization boundary for deployment
+- A separate policy/authorization boundary (environment/scope aware)
 - A functional CLI
 - Documentation-first architecture
 

@@ -36,6 +36,15 @@ indexes; enforce referential integrity at the application layer through the
 - If the store is later moved to a server DB (PostgreSQL), real FKs can be
   reintroduced together with transactional write patterns.
 
+## Update (v0.3.1)
+
+The v0.3 rename left one `REFERENCES` clause (on `evolution_events`) and the
+`PRAGMA foreign_keys=ON` connection setting in place, contradicting this ADR.
+Both were removed so the schema and the ADR agree; referential integrity is
+now fully application-layer as decided. Append-only write semantics for audit
+tables (`ON CONFLICT DO NOTHING`) were added at the same time to protect the
+historical record.
+
 ## Rejected
 
 - **Enforcing FKs**: caused valid workflows to fail; would require brittle

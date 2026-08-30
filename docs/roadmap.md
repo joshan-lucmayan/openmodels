@@ -53,6 +53,11 @@ Every release should improve the adversarial engine.
 - [ ] Business logic depth (multi-step workflows)
 - [ ] Cross-component reasoning (e.g., auth + storage combined)
 
+> Note: the v0.3 **release** shipped a different scope than originally
+> planned here: impact verification, show-once proof sessions, and case
+> studies (see `CHANGELOG.md`). Multi-step attack planning remains future
+> work.
+
 ## v0.4 — Adaptive Attack Generation
 
 - [ ] Strategy factories that generate hypotheses from observations

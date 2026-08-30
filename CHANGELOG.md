@@ -1,5 +1,61 @@
 # Changelog
 
+## v0.3.1 — Truth-in-Output, Structured Findings, Store Hardening (2026-08-30)
+
+### Changed
+
+- **`--stop-on-finding` is now enforced** by the research engine: after a
+  finding's own bookkeeping completes, no further hypotheses are tested and
+  the report records `FINDING_STOP`.
+- **Campaign budgets are enforced**: `Policy.max_experiments` now bounds
+  campaign boundary tests; an exhausted budget stops the campaign cleanly
+  (status `STOPPED`, reason `POLICY_STOP`) with all tested state persisted.
+- **CLI claims are evidence-derived**: the `security-test` summary reports
+  actual regression outcomes (blocked / STILL EXPLOITABLE / inconclusive)
+  instead of a hardcoded "defenses held" line.
+- **Case studies are truthful**: impact verification status (`verified` /
+  `not_verified` / `unknown`) is derived from the store's verification
+  records; case studies require a CONFIRMED finding and never claim
+  verification that did not happen.
+- **Campaign reruns no longer duplicate findings**: findings are deduplicated
+  on the boundary identity (target, actor, resource, interface); a CLOSED
+  finding never suppresses a new violation.
+
+### Added
+
+- **Structured finding identities**: findings link to `objective_id`,
+  `actor_id`, `resource_id`, and `interface`. The human-readable
+  `affected_component` is display-only; impact verification and proof
+  sessions resolve entities from structured IDs, never by parsing text.
+- **Explicit target capabilities** (`Capability`, `adapter_capability()`):
+  adapters declare optional capabilities; declared-but-missing methods raise
+  `AdapterCapabilityError` instead of silently looking unsupported, and
+  runtime errors propagate. Silent `except Exception` swallowing removed.
+- **Schema migration system** (`MIGRATIONS`): ordered, additive, tested
+  upgrades (v0.2 → v0.3 → v0.3.1) with a best-effort backfill of legacy
+  finding identities; unresolvable ones stay empty rather than guessed.
+- **Unified reporting**: campaign boundary tests appear in `build_report()`
+  and `status` output as first-class boundary tests (not experiments).
+- **Policy scoping**: `Policy.environment` / `Policy.scope` matching with
+  fail-closed semantics; targets declare environment/scope.
+- **Transactions**: `KnowledgeStore.transaction()` groups related saves
+  (experiment+evidence, proof-session creation) into atomic units.
+- **Constant-time** proof-key hash comparison (`hmac.compare_digest`).
+
+### Hardening
+
+- Append-only write semantics for audit/history tables (observations,
+  evidence, knowledge, evolution events, defenses, regressions, attack
+  paths, proof sessions): repeated saves can no longer overwrite history.
+- `list_campaigns` single-query (N+1 removed); datetime/JSON helpers
+  centralized.
+- DB-level FK remnants removed to match ADR 005 (application-layer
+  integrity); `ruff` lint gate is real (`|| true` removed), dev deps include
+  `ruff` and `pytest-cov`; unused `rich` dependency removed (see ADR 004
+  update); dead code removed (`AttackGraph.render`, `TargetDescription`,
+  `ObjectiveFormulator._verb`); `EvidenceCollector` wired into the
+  experiment flow.
+
 ## v0.3.0 — Show-Once Proof Sessions (2026-08-29)
 
 ### Added
@@ -71,7 +127,7 @@
   resource paths with alternative paths represented separately.
 - **Campaign engine**: CREATE → DISCOVER → FORMULATE → TEST ALL PATHS → REPORT,
   plus an adversarial improvement cycle (`enforce_and_revalidate`).
-- **Target configuration** via CLI (`openmodels target add`) describing name,
+- **Target configuration** via CLI (`opensystem target add`) describing name,
   type, organization, environment, interfaces, credentials, policy, time
   window, and emergency stop.
 - **Mock target security-boundary model**: 4 actors, 3 protected resources,

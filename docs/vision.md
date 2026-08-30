@@ -98,8 +98,9 @@ forces the defender to become better.
 
 ## Status
 
-OpenSystem is at **v0.1**: a functional foundation with a deterministic mock
+OpenSystem is at **v0.3**: a functional foundation with a deterministic mock
 target, a real adversarial loop, structured research entities, a persistent
-knowledge store, an auditable evolution mechanism, and a policy boundary.
-It does **not** claim to be an autonomous attacker yet. See
+knowledge store, an auditable evolution mechanism, a policy boundary, and a
+show-once proof-credential system for confirmed findings. It does **not**
+claim to be an autonomous attacker yet. See
 [`roadmap.md`](roadmap.md) for the path forward.

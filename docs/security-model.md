@@ -37,23 +37,28 @@ The policy (`Policy` in `opensystem/policy/models.py`) declares:
 | Field | Meaning |
 |---|---|
 | `target_name` | The target the session is authorized against (`*` = wildcard). |
-| `environment` | The environment context (e.g., `local-mock`). |
-| `allowed_operations` | OBSERVE, TEST, RESET, DESTRUCTIVE, AUTHENTICATED. |
+| `environment` | Restricts matching to targets declaring the same environment (`*` = unrestricted). |
+| `scope` | Restricts matching to targets declaring the same scope (`*` = unrestricted). |
+| `allowed_operations` | OBSERVE, TEST, RESET, DESTRUCTIVE, AUTHENTICATED, PROOF_SESSION. |
 | `max_rounds` | Cap on research rounds. |
-| `max_experiments` | Cap on experiments. |
+| `max_experiments` | Cap on experiments (enforced in research sessions and campaigns). |
 | `allowed_credentials` | Credentials the session may use (references only). |
 | `destructive_actions_allowed` | Whether destructive actions are permitted. |
-| `stop_on_finding` | Whether to stop when a finding is produced. |
+| `stop_on_finding` | Whether to stop when a finding is produced (enforced by the research engine). |
+
+Environment and scope matching **fails closed**: a policy that restricts
+either dimension only matches targets that declare the same value.
 
 ## Enforcement
 
 `PolicyEnforcer.check(operation, target)` is the **single gate**. Every test
-execution passes through it. A disallowed operation raises `PolicyViolation`
-and stops.
+execution passes through it, as does proof-session creation. A disallowed
+operation raises `PolicyViolation` and stops.
 
 Defaults are conservative:
 
 - destructive actions are **denied by default**
+- `PROOF_SESSION` is **denied by default**
 - credentials must be explicitly listed
 - sessions are bounded by `max_rounds` / `max_experiments`
 
@@ -62,8 +67,8 @@ Defaults are conservative:
 The reasoning engine (`AdversarialEngine`, strategies, hypothesis/experiment/
 evolution engines) contains **no authorization logic**. All authorization
 lives in the policy layer. This separation is enforced by design: strategy
-objects never see a policy object; the Experiment Engine alone consults the
-enforcer.
+objects never see a policy object; the orchestration engines (research,
+campaign, proof service) consult the enforcer at their action gates.
 
 ## Handling of Credentials
 
