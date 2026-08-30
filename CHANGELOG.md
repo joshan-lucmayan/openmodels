@@ -12,7 +12,9 @@
   (status `STOPPED`, reason `POLICY_STOP`) with all tested state persisted.
 - **CLI claims are evidence-derived**: the `security-test` summary reports
   actual regression outcomes (blocked / STILL EXPLOITABLE / inconclusive)
-  instead of a hardcoded "defenses held" line.
+  instead of a hardcoded "defenses held" line; Defense records state when a
+  defense was NOT applicable, and findings are only marked MITIGATION when a
+  defense was actually applied.
 - **Case studies are truthful**: impact verification status (`verified` /
   `not_verified` / `unknown`) is derived from the store's verification
   records; case studies require a CONFIRMED finding and never claim

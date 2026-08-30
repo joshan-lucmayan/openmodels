@@ -261,26 +261,34 @@ class AdversarialEngine:
         return results
 
     def _apply_defense(self, target: TargetAdapter, finding: Finding) -> Defense:
-        """Apply a defense for a finding on the target (if supported)."""
+        """Apply a defense for a finding on the target (if supported).
+
+        The Defense record states what actually happened: when the target
+        cannot defend the affected component (or already did), the record
+        says so and no regression is claimed.
+        """
         defend = adapter_capability(target, Capability.DEFENSE, "defend")
         weakness_key = finding.affected_component
-        if defend is not None:
-            defend(weakness_key)
+        applied = bool(defend(weakness_key)) if defend is not None else False
 
         defense = Defense(
             finding_id=finding.id,
-            description=f"Defense applied for {weakness_key}.",
+            description=(
+                f"Defense applied for {weakness_key}." if applied
+                else f"Defense not applicable on this target: {weakness_key}."
+            ),
         )
         self._store.save_defense(defense)
 
-        self._store.update_finding_status(finding.id, FindingStatus.MITIGATION)
+        if applied:
+            self._store.update_finding_status(finding.id, FindingStatus.MITIGATION)
 
-        hypothesis = None
-        if finding.hypothesis_id:
-            hypothesis = self._store.get_hypothesis(finding.hypothesis_id)
-        if hypothesis is not None:
-            self._evolution.on_defense(defense, hypothesis)
-            self._record_regression(target, defense, hypothesis, finding)
+            hypothesis = None
+            if finding.hypothesis_id:
+                hypothesis = self._store.get_hypothesis(finding.hypothesis_id)
+            if hypothesis is not None:
+                self._evolution.on_defense(defense, hypothesis)
+                self._record_regression(target, defense, hypothesis, finding)
 
         return defense
 

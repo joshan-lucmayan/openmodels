@@ -145,3 +145,48 @@ def test_cli_case_study_requires_confirmed_finding(tmp_path, monkeypatch):
     result = runner.invoke(cli, ["case-study", "create", finding.id])
     assert result.exit_code == 1
     assert "not CONFIRMED" in result.output
+
+
+def test_defense_record_states_when_defense_not_applicable(store, mock_target):
+    """A defense the target cannot apply must not be recorded as applied."""
+    from opensystem.attack.planner import default_planner
+    from opensystem.core.engine import AdversarialEngine
+    from opensystem.models import Finding, FindingStatus
+
+    target = mock_target.discover()
+    store.save_target(target)
+    # A campaign-style finding has no matching mock weakness key, so the
+    # target cannot actually defend it.
+    finding = Finding(
+        target_id=target.id,
+        affected_component="actor=GUEST/guest → interface=[stream_api] → resource=premium_model",
+    )
+    store.save_finding(finding)
+
+    engine = AdversarialEngine(store=store, planner=default_planner(store))
+    defense = engine._apply_defense(mock_target, finding)
+
+    assert "not applicable" in defense.description
+    assert "Defense applied" not in defense.description
+    assert store.get_finding(finding.id).verification_status == (
+        FindingStatus.DISCOVERED
+    )
+
+
+def test_defense_record_reports_applied_defense(store, mock_target):
+    from opensystem.attack.planner import default_planner
+    from opensystem.core.engine import AdversarialEngine
+    from opensystem.models import Finding, FindingStatus
+
+    target = mock_target.discover()
+    store.save_target(target)
+    finding = Finding(target_id=target.id, affected_component="auth-bypass")
+    store.save_finding(finding)
+
+    engine = AdversarialEngine(store=store, planner=default_planner(store))
+    defense = engine._apply_defense(mock_target, finding)
+
+    assert defense.description == "Defense applied for auth-bypass."
+    assert store.get_finding(finding.id).verification_status == (
+        FindingStatus.MITIGATION
+    )
