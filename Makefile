@@ -11,7 +11,7 @@ test:
 	$(PY) -m pytest
 
 lint:
-	$(PY) -m ruff check opensystem tests || true
+	$(PY) -m ruff check opensystem tests
 
 demo:
 	$(VENV)/opensystem security-test mock --rounds 5
