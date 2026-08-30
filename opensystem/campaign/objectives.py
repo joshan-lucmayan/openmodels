@@ -11,6 +11,7 @@ The engine records: INVARIANT → TEST → RESULT.
 
 from __future__ import annotations
 
+from opensystem.knowledge.store import KnowledgeStore
 from opensystem.models import (
     Actor,
     AttackObjective,
@@ -18,15 +19,13 @@ from opensystem.models import (
     Campaign,
     EntitlementDecision,
     InvariantStatus,
-    ObjectiveStatus,
     ProtectedResource,
     SecurityInvariant,
     Target,
     TestOutcome,
     TestSpec,
-    utcnow,
 )
-from opensystem.knowledge.store import KnowledgeStore
+from opensystem.target.interface import Capability, adapter_capability
 
 
 class ObjectiveFormulator:
@@ -49,16 +48,15 @@ class ObjectiveFormulator:
         — those are the security boundaries worth testing.
         """
         objectives: list[AttackObjective] = []
-        decision_fn = getattr(target_adapter, "entitlement_decision", None)
+        decision_fn = adapter_capability(
+            target_adapter, Capability.ENTITLEMENT, "entitlement_decision"
+        )
 
         for actor in actors:
             for resource in resources:
                 decision = EntitlementDecision.UNKNOWN
                 if decision_fn is not None:
-                    try:
-                        decision = decision_fn(actor.id, resource.id)
-                    except Exception:
-                        decision = EntitlementDecision.UNKNOWN
+                    decision = decision_fn(actor.id, resource.id)
 
                 if decision == EntitlementDecision.ALLOW:
                     continue
@@ -67,7 +65,7 @@ class ObjectiveFormulator:
                     actor_id=actor.id,
                     resource_id=resource.id,
                     statement=(
-                        f"{actor.name} MUST NOT {self._verb(campaign)} "
+                        f"{actor.name} MUST NOT access "
                         f"{resource.name} without entitlement"
                     ),
                 )
@@ -87,10 +85,6 @@ class ObjectiveFormulator:
 
         self._store.save_campaign(campaign)
         return objectives
-
-    @staticmethod
-    def _verb(campaign: Campaign) -> str:
-        return "access"
 
 
 class InvariantTester:
@@ -112,6 +106,7 @@ class InvariantTester:
         surface_interfaces: list[dict],
         actor: Actor,
         resource: ProtectedResource,
+        campaign_id: str = "",
     ) -> tuple[list[AttackPath], InvariantStatus]:
         """Test an objective across every interface exposing the resource.
 
@@ -147,6 +142,7 @@ class InvariantTester:
                 inconclusive = True
 
             path = AttackPath(
+                campaign_id=campaign_id,
                 actor_id=actor.id,
                 interface=interface,
                 resource_id=resource.id,
@@ -158,8 +154,6 @@ class InvariantTester:
 
         if violated:
             status = InvariantStatus.VIOLATED
-        elif inconclusive and not paths:
-            status = InvariantStatus.INCONCLUSIVE
         elif inconclusive:
             status = InvariantStatus.INCONCLUSIVE
         else:

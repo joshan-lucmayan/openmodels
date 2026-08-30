@@ -16,8 +16,8 @@ from opensystem.models import (
     FindingStatus,
     ImpactVerification,
     Target,
-    TestOutcome,
 )
+from opensystem.target.interface import Capability, adapter_capability
 
 
 class ImpactNotVerified(Exception):
@@ -30,6 +30,10 @@ class ImpactVerifier:
     The verifier does not trust the original test result alone. It re-runs a
     fresh probe against the target adapter and requires the adapter to report
     that the protected resource payload was actually delivered.
+
+    The violated path is resolved from the finding's structured identity
+    (actor_id / resource_id / interface) — never by parsing the human-readable
+    affected_component display string.
     """
 
     def __init__(self, store: KnowledgeStore) -> None:
@@ -62,13 +66,17 @@ class ImpactVerifier:
         target_adapter: object,
         target: Target,
     ) -> ImpactVerification:
-        probe = getattr(target_adapter, "probe_impact", None)
+        probe = adapter_capability(
+            target_adapter, Capability.IMPACT_PROBE, "probe_impact"
+        )
         if probe is None:
             return ImpactVerification(
                 finding_id=finding.id,
                 verified=False,
                 method="adapter-does-not-support-impact-probe",
-                detail={"reason": "target adapter lacks probe_impact()"},
+                detail={
+                    "reason": "target adapter lacks the impact_probe capability"
+                },
             )
 
         params = self._finding_path_params(finding)
@@ -76,19 +84,18 @@ class ImpactVerifier:
             return ImpactVerification(
                 finding_id=finding.id,
                 verified=False,
-                method="finding-path-parse",
-                detail={"reason": "could not determine violated path"},
+                method="finding-path-unresolvable",
+                detail={
+                    "reason": (
+                        "finding carries no structured actor/resource/"
+                        "interface identity and legacy text is not parsed"
+                    )
+                },
             )
 
-        try:
-            payload = probe(**params)
-        except Exception as exc:  # noqa: BLE001
-            return ImpactVerification(
-                finding_id=finding.id,
-                verified=False,
-                method="impact-probe",
-                detail={"reason": str(exc)},
-            )
+        # A probe that raises is an adapter implementation error: it must
+        # surface as an error, never as a recorded "not verified" outcome.
+        payload = probe(**params)
 
         reached = bool(payload)
         verification = ImpactVerification(
@@ -120,26 +127,19 @@ class ImpactVerifier:
 
     @staticmethod
     def _finding_path_params(finding: Finding) -> dict | None:
-        """Reconstruct the violated path from the finding's affected component.
+        """Resolve the violated path from the finding's structured identity.
 
-        The affected component is formatted as:
-            actor=KIND/name → interface=[iface] → resource=name
-        Returns params for the adapter probe, or None if unparseable.
+        Returns probe parameters, or None when the finding has no structured
+        identity (e.g. a legacy weakness-model finding). Presentation strings
+        are not data relationships and are never parsed here.
         """
-        try:
-            actor_part, interface_part, resource_part = (
-                finding.affected_component.split("→")
-            )
-            actor = actor_part.split("=")[1].split("/")[-1].strip()
-            interface = interface_part.split("=")[1].strip(" []")
-            resource = resource_part.split("=")[1].strip()
+        if finding.actor_id and finding.resource_id and finding.interface:
             return {
-                "actor": actor,
-                "interface": interface,
-                "resource": resource,
+                "actor": finding.actor_id,
+                "interface": finding.interface,
+                "resource": finding.resource_id,
             }
-        except (ValueError, IndexError):
-            return None
+        return None
 
 
 # Convenience: mark a finding CONFIRMED after impact verification succeeds.

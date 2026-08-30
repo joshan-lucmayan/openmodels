@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import datetime
 import hashlib
-import secrets
 import time
 
 import pytest
@@ -18,14 +17,12 @@ from opensystem.impact.engine import ImpactNotVerified, ImpactVerifier
 from opensystem.models import (
     Finding,
     FindingStatus,
-    ProofSession,
     ProofSessionStatus,
     Severity,
-    Target,
     new_id,
     utcnow,
 )
-from opensystem.policy.engine import PolicyEnforcer
+from opensystem.policy.engine import PolicyViolation
 from opensystem.policy.models import Operation, Policy
 from opensystem.proof.service import (
     ProofKeyError,
@@ -33,7 +30,6 @@ from opensystem.proof.service import (
     build_case_study,
     mask_key,
 )
-
 
 # ------------------------------------------------------------------ #
 # Fixtures
@@ -45,8 +41,13 @@ def confirmed_finding(store, mock_target):
     target = mock_target.discover()
     store.save_target(target)
 
+    actor = mock_target.actors()["free_user"]
+    resource = mock_target.resources()["premium_model"]
     finding = Finding(
         target_id=target.id,
+        actor_id=actor.id,
+        resource_id=resource.id,
+        interface="stream_api",
         severity=Severity.HIGH,
         affected_component=(
             "actor=UNAUTHENTICATED/free_user → interface=[stream_api] → "
@@ -212,7 +213,7 @@ def test_target_mismatch_rejected(store, confirmed_finding, mock_target):
         allowed_operations=[Operation.PROOF_SESSION],
     )
     service = ProofSessionService(store, policy=wrong_policy)
-    with pytest.raises(Exception):
+    with pytest.raises(PolicyViolation):
         service.create(confirmed_finding, mock_target, target)
 
 
@@ -321,7 +322,7 @@ def test_unauthorized_target_cannot_create(store, confirmed_finding, mock_target
     # Policy without PROOF_SESSION.
     strict = Policy(target_name="mock", allowed_operations=[])
     service = ProofSessionService(store, policy=strict)
-    with pytest.raises(Exception):
+    with pytest.raises(PolicyViolation):
         service.create(confirmed_finding, mock_target, target)
 
 

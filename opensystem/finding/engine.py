@@ -8,6 +8,7 @@ A finding NEVER disappears from the historical record after it is closed.
 
 from __future__ import annotations
 
+from opensystem.knowledge.store import KnowledgeStore
 from opensystem.models import (
     Experiment,
     Finding,
@@ -15,8 +16,6 @@ from opensystem.models import (
     Severity,
     TestOutcome,
 )
-from opensystem.knowledge.store import KnowledgeStore
-
 
 # Valid transitions for the finding lifecycle.
 _VALID_TRANSITIONS: dict[FindingStatus, set[FindingStatus]] = {

@@ -32,9 +32,8 @@ from opensystem.models import (
     TestOutcome,
     TestResult,
     TestSpec,
-    utcnow,
 )
-from opensystem.target.interface import TargetAdapter
+from opensystem.target.interface import Capability, TargetAdapter
 
 
 class Weakness(BaseModel):
@@ -73,6 +72,18 @@ class MockTarget(TargetAdapter):
     """
 
     name = "mock"
+
+    capabilities = frozenset(
+        {
+            Capability.DISCOVERY,
+            Capability.SECURITY_MODEL,
+            Capability.ENTITLEMENT,
+            Capability.ENFORCEMENT,
+            Capability.DEFENSE,
+            Capability.IMPACT_PROBE,
+            Capability.PROOF_SESSION,
+        }
+    )
 
     def __init__(self, name: str = "mock-service", version: str = "0.2.0"):
         self.target_name = name
@@ -322,6 +333,8 @@ class MockTarget(TargetAdapter):
                 "admin_console", "user_api",
             ],
             trust_boundaries=["internal"],
+            environment="local-mock",
+            scope="test",
         )
 
     def observe(self) -> list[Observation]:

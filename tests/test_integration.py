@@ -5,7 +5,6 @@ from __future__ import annotations
 from opensystem.attack.planner import default_planner
 from opensystem.core.engine import AdversarialEngine
 from opensystem.models import FindingStatus, TestOutcome
-from opensystem.policy.models import Policy
 
 
 def test_full_attack_defend_evolve_cycle(store, mock_target):

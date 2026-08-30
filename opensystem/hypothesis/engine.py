@@ -7,13 +7,13 @@ drives the generation of the next hypothesis.
 
 from __future__ import annotations
 
+from opensystem.knowledge.store import KnowledgeStore
 from opensystem.models import (
     Experiment,
     Hypothesis,
     HypothesisStatus,
     TestOutcome,
 )
-from opensystem.knowledge.store import KnowledgeStore
 
 
 class HypothesisEngine:
@@ -34,9 +34,7 @@ class HypothesisEngine:
         outcome = experiment.outcome
         if outcome == TestOutcome.SUCCESS:
             new_status = HypothesisStatus.ACCEPTED
-        elif outcome == TestOutcome.FAILURE:
-            new_status = HypothesisStatus.REJECTED
-        elif outcome == TestOutcome.BLOCKED:
+        elif outcome == TestOutcome.FAILURE or outcome == TestOutcome.BLOCKED:
             new_status = HypothesisStatus.REJECTED
         elif outcome == TestOutcome.ERROR:
             new_status = HypothesisStatus.INCONCLUSIVE

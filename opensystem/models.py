@@ -15,7 +15,6 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-
 # --------------------------------------------------------------------------- #
 # Enums
 # --------------------------------------------------------------------------- #
@@ -184,7 +183,7 @@ def new_id() -> str:
 
 
 def utcnow() -> datetime.datetime:
-    return datetime.datetime.now(datetime.timezone.utc)
+    return datetime.datetime.now(datetime.UTC)
 
 
 # --------------------------------------------------------------------------- #
@@ -192,7 +191,12 @@ def utcnow() -> datetime.datetime:
 # --------------------------------------------------------------------------- #
 
 class Target(BaseModel):
-    """A model of the target system under adversarial evaluation."""
+    """A model of the target system under adversarial evaluation.
+
+    ``environment`` and ``scope`` are declared by the adapter and consulted
+    by the policy layer when it restricts those dimensions; they are never
+    inferred from client-supplied data.
+    """
 
     id: str = Field(default_factory=new_id)
     name: str
@@ -204,6 +208,8 @@ class Target(BaseModel):
     interfaces: list[str] = Field(default_factory=list)
     trust_boundaries: list[str] = Field(default_factory=list)
     rules: dict = Field(default_factory=dict)
+    environment: str = ""
+    scope: str = ""
     created_at: datetime.datetime = Field(default_factory=utcnow)
     updated_at: datetime.datetime = Field(default_factory=utcnow)
 
@@ -354,6 +360,7 @@ class AttackPath(BaseModel):
     """One path through the attack graph: actor → interface → resource."""
 
     id: str = Field(default_factory=new_id)
+    campaign_id: str = ""
     actor_id: str
     interface: str
     resource_id: str
@@ -555,7 +562,7 @@ class TestResult(BaseModel):
     outcome: TestOutcome
     observed_result: str = ""
     detail: dict = Field(default_factory=dict)
-    evidence: list["Evidence"] = Field(default_factory=list)
+    evidence: list[Evidence] = Field(default_factory=list)
 
 
 class Experiment(BaseModel):
@@ -600,11 +607,21 @@ class Evidence(BaseModel):
 # --------------------------------------------------------------------------- #
 
 class Finding(BaseModel):
-    """A confirmed weakness, with a full lifecycle (Phase 8)."""
+    """A confirmed weakness, with a full lifecycle (Phase 8).
+
+    Entity relationships are carried by the structured identifiers
+    (``objective_id`` / ``actor_id`` / ``resource_id`` / ``interface``).
+    ``affected_component`` is a human-readable display string only — it is
+    never the canonical source for resolving entities.
+    """
 
     id: str = Field(default_factory=new_id)
     target_id: str
     hypothesis_id: str | None = None
+    objective_id: str | None = None
+    actor_id: str | None = None
+    resource_id: str | None = None
+    interface: str | None = None
     severity: Severity = Severity.MEDIUM
     affected_component: str = ""
     attack_hypothesis: str = ""
@@ -695,4 +712,8 @@ class ResearchReport(BaseModel):
     open_findings: int = 0
     attack_classes_attempted: set[str] = Field(default_factory=set)
     attack_classes_untested: set[str] = Field(default_factory=set)
+    # v0.2+ campaign boundary tests are reported separately — they are real
+    # research attempts but not v0.1 experiments.
+    campaign_paths_tested: int = 0
+    campaign_violations: int = 0
     stopped_reason: str = ""

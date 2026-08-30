@@ -11,15 +11,15 @@ reachable via multiple interfaces, and enforcement may differ per interface.
 
 from __future__ import annotations
 
+from opensystem.knowledge.store import KnowledgeStore
 from opensystem.models import (
     Actor,
-    AttackSurface,
     AttackPath,
     EntitlementDecision,
     ProtectedResource,
     TestOutcome,
 )
-from opensystem.knowledge.store import KnowledgeStore
+from opensystem.target.interface import Capability, adapter_capability
 
 
 class AttackGraph:
@@ -56,7 +56,9 @@ class AttackGraph:
         surface = self._store.get_attack_surface(target_id)
         surface_interfaces = surface.interfaces if surface else []
 
-        decision_fn = getattr(target_adapter, "entitlement_decision", None)
+        decision_fn = adapter_capability(
+            target_adapter, Capability.ENTITLEMENT, "entitlement_decision"
+        )
         path_outcomes: dict[tuple, TestOutcome] = {}
         if tested_paths:
             for p in tested_paths:
@@ -72,10 +74,7 @@ class AttackGraph:
             for actor in actors:
                 decision = EntitlementDecision.UNKNOWN
                 if decision_fn is not None:
-                    try:
-                        decision = decision_fn(actor.id, resource.id)
-                    except Exception:
-                        decision = EntitlementDecision.UNKNOWN
+                    decision = decision_fn(actor.id, resource.id)
                 for interface in interfaces:
                     key = (actor.id, interface, resource.id)
                     outcome = path_outcomes.get(key, TestOutcome.INCONCLUSIVE)
@@ -92,8 +91,10 @@ class AttackGraph:
                     )
 
         # De-duplicate alternative interfaces per resource.
-        for res in alternative:
-            alternative[res] = sorted(set(alternative[res]))
+        alternative = {
+            resource: sorted(set(ifaces))
+            for resource, ifaces in alternative.items()
+        }
 
         return {
             "target_id": target_id,
@@ -103,25 +104,3 @@ class AttackGraph:
             "paths": paths,
             "alternative_paths": alternative,
         }
-
-    def render(self, graph: dict) -> str:
-        """Render a human-readable ASCII attack graph."""
-        lines = []
-        for resource in graph["resources"]:
-            lines.append(f"                {resource}")
-            lines.append("                     ▲")
-            lines.append("                     │")
-            lines.append("          ┌──────────┼──────────┐")
-            alt = graph["alternative_paths"].get(resource, [])
-            if alt:
-                middle = len(alt) // 2
-                for i, iface in enumerate(alt):
-                    if i == middle:
-                        lines.append(f"       {iface:12s}    {iface}")
-                    else:
-                        lines.append(f"       {iface:12s}   {iface}")
-            lines.append("          └──────────┼──────────┘")
-            lines.append("                     │")
-            lines.append("               Authorization")
-            lines.append("")
-        return "\n".join(lines)

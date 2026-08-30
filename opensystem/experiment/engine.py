@@ -8,8 +8,9 @@ defender has blocked.
 from __future__ import annotations
 
 from opensystem import VERSION
+from opensystem.evidence.engine import EvidenceCollector
+from opensystem.knowledge.store import KnowledgeStore
 from opensystem.models import (
-    Evidence,
     Experiment,
     Hypothesis,
     Target,
@@ -17,18 +18,23 @@ from opensystem.models import (
     TestSpec,
     utcnow,
 )
-from opensystem.target.interface import TargetAdapter
-from opensystem.knowledge.store import KnowledgeStore
 from opensystem.policy.engine import PolicyEnforcer
 from opensystem.policy.models import Operation
+from opensystem.target.interface import TargetAdapter
 
 
 class ExperimentEngine:
     """Executes a single hypothesis as a concrete test against the target."""
 
-    def __init__(self, store: KnowledgeStore, policy: PolicyEnforcer) -> None:
+    def __init__(
+        self,
+        store: KnowledgeStore,
+        policy: PolicyEnforcer,
+        collector: EvidenceCollector | None = None,
+    ) -> None:
         self._store = store
         self._policy = policy
+        self._collector = collector or EvidenceCollector(store)
 
     def run(
         self,
@@ -36,7 +42,11 @@ class ExperimentEngine:
         target: TargetAdapter,
         target_model: Target,
     ) -> Experiment:
-        """Run an experiment: plan, execute, collect evidence, persist."""
+        """Run an experiment: plan, execute, collect evidence, persist.
+
+        The experiment and its evidence are persisted in one transaction; the
+        experiment row is written once, with its evidence links included.
+        """
         test_spec = TestSpec(
             name=f"test-{hypothesis.origin}",
             description=hypothesis.statement,
@@ -49,7 +59,6 @@ class ExperimentEngine:
         self._policy.check(Operation.TEST, target_model)
 
         result = target.execute_test(test_spec)
-        evidence = target.collect_evidence()
 
         experiment = Experiment(
             hypothesis_id=hypothesis.id,
@@ -63,14 +72,10 @@ class ExperimentEngine:
             completed_at=utcnow(),
         )
 
-        self._store.save_experiment(experiment)
-
-        for ev in evidence:
-            ev.experiment_id = experiment.id
-            self._store.save_evidence(ev)
-
-        experiment.evidence_ids = [ev.id for ev in evidence]
-        self._store.save_experiment(experiment)
+        with self._store.transaction():
+            evidence = self._collector.collect(target, experiment_id=experiment.id)
+            experiment.evidence_ids = [ev.id for ev in evidence]
+            self._store.save_experiment(experiment)
 
         return experiment
 

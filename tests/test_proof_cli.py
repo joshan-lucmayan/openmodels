@@ -57,6 +57,9 @@ def seeded_finding(store):
     store.save_target(target)
     finding = Finding(
         target_id=target.id,
+        actor_id=adapter.actors()["free_user"].id,
+        resource_id=adapter.resources()["premium_model"].id,
+        interface="stream_api",
         severity=Severity.HIGH,
         affected_component=AFFECTED,
         attack_hypothesis="free_user can access premium_model via stream_api",
@@ -144,7 +147,8 @@ def test_full_proof_workflow(runner, store, seeded_finding):
     export_path = next(
         ln.split()[-1] for ln in r.output.splitlines() if "Exported" in ln
     )
-    exported = json.loads(open(export_path).read())
+    with open(export_path) as fh:
+        exported = json.loads(fh.read())
     assert raw_key not in json.dumps(exported, default=str)
 
     # The historical record is preserved after revocation.

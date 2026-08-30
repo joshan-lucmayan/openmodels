@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from opensystem.knowledge.store import KnowledgeStore
 from opensystem.models import Observation
 from opensystem.target.interface import TargetAdapter
-from opensystem.knowledge.store import KnowledgeStore
 
 
 class ObservationEngine:

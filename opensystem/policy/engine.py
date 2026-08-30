@@ -31,14 +31,8 @@ class PolicyEnforcer:
 
     def check(self, operation: Operation, target: Target | None = None) -> None:
         """Raise PolicyViolation if the operation is not permitted."""
-        if target is not None:
-            matches = self._policy.target_name in (
-                "*",
-                target.name,
-                target.adapter,
-            )
-            if not matches:
-                raise PolicyViolation(operation, self._policy)
+        if target is not None and not self._policy.allows_target(target):
+            raise PolicyViolation(operation, self._policy)
         if not self._policy.allows(operation):
             raise PolicyViolation(operation, self._policy)
 
@@ -48,3 +42,11 @@ class PolicyEnforcer:
             rounds >= self._policy.max_rounds
             or experiments >= self._policy.max_experiments
         )
+
+    def should_stop_on_finding(self) -> bool:
+        """Return True if the policy stops the session at the first finding."""
+        return self._policy.stop_on_finding
+
+    def experiments_remaining(self, used: int) -> int:
+        """Return how many experiments the policy budget still allows."""
+        return max(0, self._policy.max_experiments - used)

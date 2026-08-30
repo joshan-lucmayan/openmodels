@@ -21,6 +21,7 @@ from opensystem.evolution.engine import EvolutionEngine
 from opensystem.experiment.engine import ExperimentEngine
 from opensystem.finding.engine import FindingEngine
 from opensystem.hypothesis.engine import HypothesisEngine
+from opensystem.knowledge.store import KnowledgeStore
 from opensystem.models import (
     Defense,
     Experiment,
@@ -36,9 +37,12 @@ from opensystem.models import (
 )
 from opensystem.observation.engine import ObservationEngine
 from opensystem.policy.engine import PolicyEnforcer
-from opensystem.policy.models import Operation, Policy, StopReason
-from opensystem.target.interface import TargetAdapter
-from opensystem.knowledge.store import KnowledgeStore
+from opensystem.policy.models import Policy, StopReason
+from opensystem.target.interface import (
+    Capability,
+    TargetAdapter,
+    adapter_capability,
+)
 
 
 class AdversarialEngine:
@@ -109,6 +113,7 @@ class AdversarialEngine:
         )
 
         experiments_run = 0
+        found_finding: Finding | None = None
         stop_reason = StopReason.MANUAL.value
 
         # 5-11. PLAN → TEST → OBSERVE → ANALYZE → UPDATE → GENERATE NEXT
@@ -128,7 +133,7 @@ class AdversarialEngine:
             report.rounds_executed += 1
 
             # OBSERVE RESULT + ANALYZE
-            status = self._hypotheses.evaluate(hypothesis, experiment)
+            self._hypotheses.evaluate(hypothesis, experiment)
             report.attack_classes_attempted.add(hypothesis.origin)
 
             if experiment.outcome == TestOutcome.SUCCESS:
@@ -137,6 +142,8 @@ class AdversarialEngine:
                 if finding is not None:
                     report.findings_created += 1
                     report.open_findings += 1
+                    found_finding = finding
+
             elif experiment.outcome == TestOutcome.FAILURE:
                 report.failed_tests += 1
             elif experiment.outcome == TestOutcome.BLOCKED:
@@ -153,10 +160,21 @@ class AdversarialEngine:
 
             rounds -= 1
 
-        if rounds <= 0:
-            stop_reason = StopReason.MAX_ROUNDS.value
-        elif not queue:
-            stop_reason = StopReason.NO_MORE_HYPOTHESES.value
+            # Stop-on-finding is checked after the experiment's own
+            # bookkeeping so the finding is fully recorded; no further
+            # hypotheses are tested.
+            if (
+                found_finding is not None
+                and self._policy_enforcer.should_stop_on_finding()
+            ):
+                stop_reason = StopReason.FINDING_STOP.value
+                break
+
+        if stop_reason == StopReason.MANUAL.value:
+            if rounds <= 0:
+                stop_reason = StopReason.MAX_ROUNDS.value
+            elif not queue:
+                stop_reason = StopReason.NO_MORE_HYPOTHESES.value
 
         report.stopped_reason = stop_reason
         self._store.save_knowledge(
@@ -244,7 +262,7 @@ class AdversarialEngine:
 
     def _apply_defense(self, target: TargetAdapter, finding: Finding) -> Defense:
         """Apply a defense for a finding on the target (if supported)."""
-        defend = getattr(target, "defend", None)
+        defend = adapter_capability(target, Capability.DEFENSE, "defend")
         weakness_key = finding.affected_component
         if defend is not None:
             defend(weakness_key)

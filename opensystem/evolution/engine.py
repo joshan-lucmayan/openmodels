@@ -13,6 +13,7 @@ and provenance. OpenSystem never modifies its own code; it modifies its
 
 from __future__ import annotations
 
+from opensystem.knowledge.store import KnowledgeStore
 from opensystem.models import (
     Defense,
     EvolutionEvent,
@@ -23,9 +24,7 @@ from opensystem.models import (
     Knowledge,
     KnowledgeKind,
     TestOutcome,
-    utcnow,
 )
-from opensystem.knowledge.store import KnowledgeStore
 
 
 class EvolutionEngine:

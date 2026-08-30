@@ -8,8 +8,8 @@ modules (web/API, identity, AI/agent, logic, etc.) without redesigning the core.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from opensystem.models import (
     Hypothesis,
@@ -98,10 +98,9 @@ class AttackPlanner:
             )
 
         for factory in self.strategy_factories.values():
-            try:
-                generated = factory(target, observations, self.store)
-            except Exception:
-                continue
+            # A registered factory that raises is an implementation error and
+            # propagates — it must not silently disappear from the plan.
+            generated = factory(target, observations, self.store)
             for h in generated:
                 if h.statement in existing_statements:
                     continue

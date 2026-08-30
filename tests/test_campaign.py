@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
-
-from opensystem.campaign.engine import CampaignEngine
 from opensystem.campaign.discovery import AttackSurfaceDiscovery
+from opensystem.campaign.engine import CampaignEngine
 from opensystem.campaign.objectives import InvariantTester, ObjectiveFormulator
 from opensystem.models import (
     AttackObjective,
     CampaignStatus,
-    EntitlementDecision,
     InvariantStatus,
     ObjectiveStatus,
     TestOutcome,
@@ -34,7 +31,7 @@ def _setup_campaign(store, mock_target):
 
 
 def test_campaign_creation(store, mock_target):
-    engine, campaign, _ = _setup_campaign(store, mock_target)
+    _, campaign, _ = _setup_campaign(store, mock_target)
     assert campaign.status == CampaignStatus.DISCOVERING
     assert len(campaign.actor_ids) == 4
     assert len(campaign.resource_ids) == 3
@@ -152,3 +149,30 @@ def test_findings_reference_violated_paths(store, mock_target):
         assert "stream_api" in f.affected_component
         assert "premium_model" in f.affected_component
         assert "without entitlement" in f.attack_hypothesis
+
+
+def test_attack_graph_builds_paths_and_alternatives(store, mock_target):
+    """The attack graph reflects tested outcomes and alternative paths."""
+    from opensystem.campaign.graph import AttackGraph
+
+    engine, campaign, target = _setup_campaign(store, mock_target)
+    engine.run(campaign, mock_target, target)
+
+    actors = [store.get_actor(a) for a in campaign.actor_ids]
+    resources = [store.get_protected_resource(r) for r in campaign.resource_ids]
+    graph = AttackGraph(store).build(
+        campaign.target_id, actors, resources, mock_target,
+        store.list_attack_paths(campaign_id=campaign.id),
+    )
+
+    assert graph["target_id"] == campaign.target_id
+    # The unenforced stream_api crossing is recorded as a tested outcome.
+    crossing = next(
+        p for p in graph["paths"]
+        if p["actor"] == "guest" and p["interface"] == "stream_api"
+    )
+    assert crossing["outcome"] == "SUCCESS"
+    # Every non-entitled actor reaches premium_model via all three interfaces.
+    assert graph["alternative_paths"]["premium_model"] == [
+        "chat_api", "job_api", "stream_api",
+    ]

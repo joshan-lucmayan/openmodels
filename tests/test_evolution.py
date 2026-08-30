@@ -46,7 +46,7 @@ def test_evolution_on_success_records_strategy(store):
 
 def test_evolution_on_failure_records_failed_strategy(store):
     engine = EvolutionEngine(store)
-    hyp, exp = _make_experiment(store, TestOutcome.FAILURE)
+    _, exp = _make_experiment(store, TestOutcome.FAILURE)
     event = engine.on_experiment(exp)
     assert event is not None
     assert event.trigger == EvolutionTrigger.ATTACK_FAILURE
@@ -57,7 +57,7 @@ def test_evolution_on_failure_records_failed_strategy(store):
 
 def test_evolution_no_event_for_inconclusive(store):
     engine = EvolutionEngine(store)
-    hyp, exp = _make_experiment(store, TestOutcome.INCONCLUSIVE)
+    _, exp = _make_experiment(store, TestOutcome.INCONCLUSIVE)
     assert engine.on_experiment(exp) is None
 
 

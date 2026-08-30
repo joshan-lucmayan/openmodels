@@ -39,7 +39,7 @@ def test_learning_from_failure(engine, mock_target):
     store = engine.store
 
     mock_target.defend("auth-bypass")
-    report = engine.research(mock_target, rounds=2)
+    engine.research(mock_target, rounds=2)
 
     hypotheses = store.list_hypotheses(target_model.id)
     blocked_hyps = [
@@ -55,7 +55,6 @@ def test_learning_from_failure(engine, mock_target):
 
 
 def test_evolution_generates_new_hypothesis_after_block(engine, mock_target):
-    target_model = mock_target.discover()
     store = engine.store
 
     # Block several paths so evolution must pick an alternate.

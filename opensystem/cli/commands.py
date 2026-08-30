@@ -9,14 +9,18 @@ from pathlib import Path
 import click
 
 from opensystem import VERSION
+from opensystem.attack.planner import default_planner
 from opensystem.config import data_home, store_path
 from opensystem.core.engine import AdversarialEngine
 from opensystem.knowledge.store import KnowledgeStore
-from opensystem.models import FindingStatus
+from opensystem.models import FindingStatus, TestOutcome
 from opensystem.policy.models import Operation, Policy
+from opensystem.target.interface import (
+    Capability,
+    adapter_capability,
+    adapter_supports,
+)
 from opensystem.target.registry import TargetRegistry
-from opensystem.attack.planner import default_planner
-
 
 # --------------------------------------------------------------------------- #
 # Shared context
@@ -63,6 +67,23 @@ def _resolve_prefix(items: list, prefix: str, label: str) -> str:
     return matches[0]
 
 
+def _regression_summary(regressions: list) -> str:
+    """Summarize regression outcomes from the recorded evidence.
+
+    Every outcome class is reported as recorded — a regression that is not
+    blocked is never described as held.
+    """
+    blocked = sum(1 for r in regressions if r.outcome == TestOutcome.FAILURE)
+    exploitable = sum(1 for r in regressions if r.outcome == TestOutcome.SUCCESS)
+    other = len(regressions) - blocked - exploitable
+    parts = [f"{len(regressions)} re-tests", f"{blocked} blocked"]
+    if exploitable:
+        parts.append(f"{exploitable} STILL EXPLOITABLE")
+    if other:
+        parts.append(f"{other} inconclusive")
+    return "Regressions: " + ", ".join(parts)
+
+
 # --------------------------------------------------------------------------- #
 # Main CLI
 # --------------------------------------------------------------------------- #
@@ -96,8 +117,8 @@ def init(ctx: Context, force: bool) -> None:
         return
 
     home.mkdir(parents=True, exist_ok=True)
-    store = ctx.store
-    # Touch the store by saving a metadata entry
+    # Initializing the store creates the schema.
+    ctx.store.list_targets()
     click.echo(f"OpenSystem initialized at {home}")
     click.echo(f"Knowledge store: {db_path}")
     click.echo(f"Version: {VERSION}")
@@ -418,7 +439,7 @@ def finding_prove(
         click.echo(f"Error: unknown adapter '{adapter_name}'.", err=True)
         sys.exit(1)
 
-    if not getattr(target_adapter, "supports_proof_sessions", lambda: False)():
+    if not adapter_supports(target_adapter, Capability.PROOF_SESSION):
         click.echo(
             f"Error: target adapter '{adapter_name}' does not support proof "
             "sessions.", err=True)
@@ -559,7 +580,7 @@ def impact_verify(ctx: Context, finding_id: str) -> None:
         click.echo(f"Resource:  {detail.get('resource')}")
         click.echo(f"Interface: {detail.get('interface')}")
         click.echo(f"Payload:   {detail.get('payload')}")
-        click.echo(f"Status:    CONFIRMED — ready for proof session.")
+        click.echo("Status:    CONFIRMED — ready for proof session.")
     else:
         click.echo("Status:    NOT verified.")
 
@@ -652,7 +673,7 @@ def proof_key_list(ctx: Context) -> None:
         name = actor.name.upper() if actor else s.actor_id[:6]
         click.echo(
             f"{s.id:<16} {s.finding_id:<16} {name:<12} "
-            f"{s.status.value:<8} {s.expires_at.strftime('%H:%M')}"
+            f"{s.status.value:<8} {s.expires_at.strftime('%Y-%m-%d %H:%M')}"
         )
 
 
@@ -743,6 +764,15 @@ def case_study_create(ctx: Context, finding_id: str) -> None:
     all_findings = FindingEngine(ctx.store).list_findings()
     full_id = _resolve_prefix(all_findings, finding_id, "finding")
     finding = next(f for f in all_findings if f.id == full_id)
+
+    # Case studies document confirmed findings only; the verification status
+    # recorded in the report is always the store's own record.
+    if finding.verification_status != FindingStatus.CONFIRMED:
+        click.echo(
+            f"Error: finding {full_id[:8]} is {finding.verification_status.value}, "
+            "not CONFIRMED. Run 'opensystem impact verify <finding-id>' first.",
+            err=True)
+        sys.exit(1)
 
     target = ctx.store.get_target(finding.target_id)
     if target is None:
@@ -884,8 +914,10 @@ def campaign_create(
     target_model = adapter.discover()
 
     # Build actors and resources from the adapter's security model.
-    actors = list(getattr(adapter, "actors", lambda: {})().values())
-    resources = list(getattr(adapter, "resources", lambda: {})().values())
+    actors_fn = adapter_capability(adapter, Capability.SECURITY_MODEL, "actors")
+    resources_fn = adapter_capability(adapter, Capability.SECURITY_MODEL, "resources")
+    actors = list(actors_fn().values()) if actors_fn else []
+    resources = list(resources_fn().values()) if resources_fn else []
 
     campaign = engine.create_campaign(
         name=name,
@@ -1121,6 +1153,11 @@ def status(ctx: Context, target: str | None) -> None:
             report = store.build_report(t.id)
             click.echo(f"Target: {t.name} ({t.id[:8]})")
             click.echo(f"  Experiments:    {report.experiments_run}")
+            if report.campaign_paths_tested:
+                click.echo(
+                    f"  Boundary tests: {report.campaign_paths_tested} "
+                    f"({report.campaign_violations} boundary crossings)"
+                )
             click.echo(f"  Findings:       {report.findings_created} ({report.open_findings} open)")
             click.echo(f"  Successes:      {report.successful_tests}")
             click.echo(f"  Failures:       {report.failed_tests}")
@@ -1139,6 +1176,11 @@ def status(ctx: Context, target: str | None) -> None:
             f"{report.inconclusive_tests} inconclusive. "
             f"{report.findings_created} findings ({report.open_findings} open)."
         )
+        if report.campaign_paths_tested:
+            click.echo(
+                f"  Campaign boundary tests: {report.campaign_paths_tested} "
+                f"({report.campaign_violations} crossings)."
+            )
 
 
 # --------------------------------------------------------------------------- #
@@ -1187,11 +1229,12 @@ def security_test(ctx: Context, target: str, rounds: int) -> None:
         click.echo(f"  Attack classes: {', '.join(sorted(r2.attack_classes_attempted))}")
 
     click.echo("=== Evolution Summary ===")
-    regs = len(results["regressions"])
     click.echo(
         f"Round 1 found {r1.findings_created} weaknesses. "
-        f"Defenses applied to all {len(results['defenses'])} findings. "
-        f"Regressions: {regs} re-tests, all blocked (defenses held). "
+        f"Defenses applied to {len(results['defenses'])} findings. "
+        f"{_regression_summary(results['regressions'])}."
+    )
+    click.echo(
         f"Round 2 evolved to {r2.experiments_run if r2 else 0} new attack surfaces "
         f"({r2.findings_created if r2 else 0} new findings)."
     )

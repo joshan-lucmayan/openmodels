@@ -69,7 +69,7 @@ def test_finding_lifecycle_transitions(store):
     engine.transition(finding.id, FindingStatus.VERIFICATION)
     engine.transition(finding.id, FindingStatus.CLOSED)
 
-    closed = [f for f in engine.list_findings() if f.id == finding.id][0]
+    closed = next(f for f in engine.list_findings() if f.id == finding.id)
     assert closed.verification_status == FindingStatus.CLOSED
 
 

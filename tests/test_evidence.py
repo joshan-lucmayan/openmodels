@@ -6,7 +6,6 @@ from opensystem.evidence.engine import EvidenceCollector
 from opensystem.experiment.engine import ExperimentEngine
 from opensystem.models import Evidence, EvidenceKind, Hypothesis, TestOutcome
 from opensystem.policy.engine import PolicyEnforcer
-from opensystem.policy.models import Policy
 
 
 def test_evidence_linked_to_experiment(store, mock_target, policy):

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from opensystem.models import Hypothesis, HypothesisStatus, TestOutcome
 from opensystem.hypothesis.engine import HypothesisEngine
+from opensystem.models import Hypothesis, HypothesisStatus, TestOutcome
 
 
 def test_hypothesis_creation_and_persistence(store):

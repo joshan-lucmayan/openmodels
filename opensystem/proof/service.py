@@ -17,16 +17,21 @@ Justification:   For high-entropy (256-bit) CSPRNG-generated secrets, SHA-256
                  full cryptographic entropy. The session ID is stored in the
                  clear for lookup; the secret provides the authentication
                  factor.
+
+The affected actor and resource are resolved from the finding's structured
+identity (actor_id / resource_id) — presentation strings are never parsed.
 """
 
 from __future__ import annotations
 
 import datetime
 import hashlib
+import hmac
 import secrets
 
 from opensystem.knowledge.store import KnowledgeStore
 from opensystem.models import (
+    Actor,
     CaseStudy,
     Evidence,
     EvidenceKind,
@@ -36,13 +41,18 @@ from opensystem.models import (
     ProofSessionResult,
     ProofSessionStatus,
     ProofVerification,
+    ProtectedResource,
     Target,
-    TestOutcome,
     new_id,
     utcnow,
 )
 from opensystem.policy.engine import PolicyEnforcer
 from opensystem.policy.models import Operation, Policy
+from opensystem.target.interface import (
+    Capability,
+    adapter_capability,
+    adapter_supports,
+)
 
 
 class ProofKeyError(Exception):
@@ -88,7 +98,7 @@ class ProofSessionService:
         Gating checks (all must pass):
           1. Finding exists and is CONFIRMED.
           2. Impact verification succeeded (latest ImpactVerification.verified).
-          3. Target adapter supports proof sessions.
+          3. Target adapter declares the proof_session capability.
           4. Policy permits PROOF_SESSION.
           5. The affected actor and resource are resolvable.
 
@@ -110,8 +120,7 @@ class ProofSessionService:
             )
 
         # Gate 3: adapter support.
-        supports = getattr(target_adapter, "supports_proof_sessions", None)
-        if supports is None or not supports():
+        if not adapter_supports(target_adapter, Capability.PROOF_SESSION):
             raise ProofKeyError(
                 "Target adapter does not support proof sessions."
             )
@@ -119,7 +128,8 @@ class ProofSessionService:
         # Gate 4: policy.
         self._enforcer.check(Operation.PROOF_SESSION, target)
 
-        # Gate 5: resolve actor and resource.
+        # Gate 5: resolve actor and resource from the finding's structured
+        # identity.
         actor = self._resolve_actor(finding, target_adapter)
         resource = self._resolve_resource(finding, target_adapter)
         if actor is None:
@@ -128,11 +138,6 @@ class ProofSessionService:
             raise ProofKeyError(
                 "Cannot resolve affected resource from finding."
             )
-
-        # Persist the binding records so every reader (inspect, case study,
-        # audit) can resolve the actor/resource the key is bound to.
-        self._store.save_actor(actor)
-        self._store.save_protected_resource(resource)
 
         # Generate the proof credential.
         session_id = new_id()
@@ -164,7 +169,14 @@ class ProofSessionService:
             status=ProofSessionStatus.ACTIVE,
             expires_at=expires,
         )
-        self._store.save_proof_session(session)
+
+        # Persist the binding records and the session atomically so every
+        # reader (inspect, case study, audit) can resolve the actor/resource
+        # the key is bound to.
+        with self._store.transaction():
+            self._store.save_actor(actor)
+            self._store.save_protected_resource(resource)
+            self._store.save_proof_session(session)
 
         return ProofSessionResult(session=session, raw_key=raw_key)
 
@@ -210,10 +222,10 @@ class ProofSessionService:
         if session is None:
             return ProofVerification(ok=False, reason="session-not-found")
 
-        # 2. Hash the presented key and compare.
+        # 2. Hash the presented key and compare (constant-time).
         reconstructed = f"omk_{session_id}_{presented_secret}"
         presented_hash = hashlib.sha256(reconstructed.encode()).hexdigest()
-        if presented_hash != session.key_hash:
+        if not hmac.compare_digest(presented_hash, session.key_hash):
             return ProofVerification(ok=False, reason="key-mismatch")
 
         now = utcnow()
@@ -265,11 +277,12 @@ class ProofSessionService:
             },
             reference=f"proof:{session.id}",
         )
-        self._store.save_evidence(evidence)
-        finding = self._store.get_finding(session.finding_id)
-        if finding is not None and evidence.id not in finding.evidence_ids:
-            finding.evidence_ids.append(evidence.id)
-            self._store.save_finding(finding)
+        with self._store.transaction():
+            self._store.save_evidence(evidence)
+            finding = self._store.get_finding(session.finding_id)
+            if finding is not None and evidence.id not in finding.evidence_ids:
+                finding.evidence_ids.append(evidence.id)
+                self._store.save_finding(finding)
 
         return ProofVerification(ok=True, session=session, reason="authenticated")
 
@@ -281,21 +294,18 @@ class ProofSessionService:
         """Return a proof session with masked key (read-only).
 
         The returned record never carries the raw key: only the masked key
-        representation and a truncated hash are exposed.
+        representation and a truncated hash are exposed. The stored record
+        itself is untouched — masking is applied to a copy so a masked hash
+        can never be persisted back by a later save.
         """
         session = self._store.get_proof_session(session_id)
         if session is None:
             return None
-        # Mask the hash — never expose the raw key.
-        session.key_hash = session.key_hash[:8] + "..."
-        return session
+        return self._mask(session)
 
     def list(self) -> list[ProofSession]:
         """List all proof sessions (masked)."""
-        sessions = self._store.list_proof_sessions()
-        for s in sessions:
-            s.key_hash = s.key_hash[:8] + "..."
-        return sessions
+        return [self._mask(s) for s in self._store.list_proof_sessions()]
 
     def revoke(self, session_id: str) -> ProofSession | None:
         """Revoke a proof session immediately.
@@ -319,30 +329,54 @@ class ProofSessionService:
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def _resolve_actor(finding: Finding, target_adapter: object) -> object | None:
-        """Resolve the affected actor from the finding's component string."""
-        actors = getattr(target_adapter, "actors", None)
-        if actors is None:
-            return None
-        try:
-            actor_part = finding.affected_component.split("→")[0]
-            actor_name = actor_part.split("=")[1].split("/")[-1].strip()
-            return actors().get(actor_name)
-        except (IndexError, ValueError, AttributeError):
-            return None
+    def _mask(session: ProofSession) -> ProofSession:
+        """Return a copy of the session with the key hash truncated."""
+        return session.model_copy(
+            update={"key_hash": session.key_hash[:8] + "..."}
+        )
 
-    @staticmethod
-    def _resolve_resource(finding: Finding, target_adapter: object) -> object | None:
-        """Resolve the affected resource from the finding's component string."""
-        resources = getattr(target_adapter, "resources", None)
-        if resources is None:
+    def _resolve_actor(
+        self, finding: Finding, target_adapter: object
+    ) -> Actor | None:
+        """Resolve the affected actor from the finding's structured identity.
+
+        The store is authoritative; adapters declaring a security model may
+        supply the record when it has not been persisted yet (it is persisted
+        by create()).
+        """
+        if not finding.actor_id:
             return None
-        try:
-            resource_part = finding.affected_component.split("→")[-1]
-            resource_name = resource_part.split("=")[1].strip()
-            return resources().get(resource_name)
-        except (IndexError, ValueError, AttributeError):
+        actor = self._store.get_actor(finding.actor_id)
+        if actor is not None:
+            return actor
+        actors_fn = adapter_capability(
+            target_adapter, Capability.SECURITY_MODEL, "actors"
+        )
+        if actors_fn is None:
             return None
+        models = actors_fn()
+        return models.get(finding.actor_id) or next(
+            (a for a in models.values() if a.id == finding.actor_id), None
+        )
+
+    def _resolve_resource(
+        self, finding: Finding, target_adapter: object
+    ) -> ProtectedResource | None:
+        """Resolve the affected resource from the finding's structured identity."""
+        if not finding.resource_id:
+            return None
+        resource = self._store.get_protected_resource(finding.resource_id)
+        if resource is not None:
+            return resource
+        resources_fn = adapter_capability(
+            target_adapter, Capability.SECURITY_MODEL, "resources"
+        )
+        if resources_fn is None:
+            return None
+        models = resources_fn()
+        return models.get(finding.resource_id) or next(
+            (r for r in models.values() if r.id == finding.resource_id), None
+        )
 
 
 # ------------------------------------------------------------------ #
@@ -359,22 +393,55 @@ def build_case_study(
     """Assemble a reproducible case study for a finding from real store data.
 
     Every section is derived from persisted records — experiments, evidence,
-    attack surface, hypotheses, defenses — not from placeholders. The report
-    NEVER contains the raw proof key: only proof-session metadata.
+    attack surface, hypotheses, defenses — not from placeholders. Impact
+    verification status is reported exactly as the store records it: a case
+    study never claims verification that did not happen. The report NEVER
+    contains the raw proof key: only proof-session metadata.
     """
     campaign = store.get_campaign(campaign_id) if campaign_id else None
 
     # --- Actor / resource records -----------------------------------
+    # Structured identity first; proof-session bindings as fallback.
+    actor = (
+        store.get_actor(finding.actor_id) if finding.actor_id else None
+    )
+    resource = (
+        store.get_protected_resource(finding.resource_id)
+        if finding.resource_id
+        else None
+    )
     sessions = store.list_proof_sessions()
     proof = next((s for s in sessions if s.finding_id == finding.id), None)
-    actor = resource = None
     if proof is not None:
-        actor = store.get_actor(proof.actor_id)
-        resource = store.get_protected_resource(proof.resource_id)
+        if actor is None:
+            actor = store.get_actor(proof.actor_id)
+        if resource is None:
+            resource = store.get_protected_resource(proof.resource_id)
 
     def _component_part(part: int) -> str:
         pieces = finding.affected_component.split("→")
         return pieces[part].strip() if len(pieces) > part else finding.affected_component
+
+    # --- Impact verification status (evidence-derived) -----------------
+    verifications = store.get_impact_verifications(finding.id)
+    latest_verification = verifications[0] if verifications else None
+    if latest_verification is None:
+        impact_status = "unknown"
+        impact_summary = (
+            "No independent impact verification on record for this finding."
+        )
+    elif latest_verification.verified:
+        impact_status = "verified"
+        impact_summary = (
+            "Impact independently verified: a fresh probe confirmed the "
+            "protected resource was reached."
+        )
+    else:
+        impact_status = "not_verified"
+        impact_summary = (
+            "Independent impact verification did NOT confirm that the "
+            "protected resource was reached."
+        )
 
     # --- Real experiments and hypotheses ------------------------------
     experiments = store.get_experiments_by_hypothesis(finding.hypothesis_id) \
@@ -396,6 +463,11 @@ def build_case_study(
     surface_interfaces = [
         i.get("name", str(i)) for i in (surface.interfaces if surface else [])
     ]
+    discovered_paths = sum(
+        len(store.list_attack_paths(campaign_id=c.id))
+        for c in store.list_campaigns()
+        if c.target_id == target.id
+    )
 
     # --- Defenses and regression status ---------------------------------
     defenses = store.list_defenses(finding.id)
@@ -409,6 +481,7 @@ def build_case_study(
             "version": target.version,
             "description": target.description,
         },
+        "campaign_id": campaign.id if campaign else "",
         "authorization_scope": (
             f"Authorized test environment: target '{target.name}' "
             f"(adapter={target.adapter}); all testing confined to this target."
@@ -425,13 +498,21 @@ def build_case_study(
         },
         "methodology": (
             "Adversarial campaign: hypothesis-driven security-boundary "
-            "testing. Each hypothesis was tested experimentally; a finding "
-            "was confirmed only after an independent impact probe reached "
-            "the protected resource."
+            "testing. Each hypothesis was tested experimentally. A finding "
+            "is promoted to CONFIRMED only after an independent impact probe "
+            "reaches the protected resource; the verification status of this "
+            "finding is recorded below."
         ),
+        "impact_verification": {
+            "status": impact_status,
+            "method": (
+                latest_verification.method if latest_verification else ""
+            ),
+            "summary": impact_summary,
+        },
         "attack_surface": {
             "interfaces": surface_interfaces,
-            "discovered_paths": len(store.list_attack_paths()),
+            "discovered_paths": discovered_paths,
         },
         "hypotheses": (
             [hypothesis.statement] if hypothesis else [finding.attack_hypothesis]
@@ -484,7 +565,7 @@ def build_case_study(
         ),
         "conclusion": (
             f"Security boundary violated: {finding.attack_hypothesis}. "
-            f"Impact independently verified: {finding.impact}. "
+            f"Impact verification status: {impact_status}. "
             f"Mitigation: {finding.recommended_mitigation}"
         ),
     }

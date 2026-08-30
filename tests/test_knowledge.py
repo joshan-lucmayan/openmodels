@@ -34,7 +34,6 @@ def test_knowledge_search_across_targets(store):
 
 
 def test_previous_attempts_query(store):
-    from opensystem.models import Hypothesis
 
     hyp = Hypothesis(target_id="t1", statement="x", origin="strategy:auth-bypass")
     store.save_hypothesis(hyp)
@@ -56,7 +55,6 @@ def test_previous_attempts_query(store):
 
 
 def test_what_failed_query(store):
-    from opensystem.models import Hypothesis
 
     hyp = Hypothesis(target_id="t1", statement="x", origin="strategy:auth-bypass")
     store.save_hypothesis(hyp)
@@ -74,7 +72,6 @@ def test_what_failed_query(store):
 
 
 def test_build_report(store):
-    from opensystem.models import Hypothesis
 
     hyp = Hypothesis(target_id="t1", statement="x", origin="strategy:auth-bypass")
     store.save_hypothesis(hyp)
