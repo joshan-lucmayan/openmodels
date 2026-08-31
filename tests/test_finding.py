@@ -18,7 +18,7 @@ def _make_success_experiment(store, target_id="t1"):
     hyp = Hypothesis(
         target_id=target_id,
         statement="weakness exists",
-        origin="strategy:auth-bypass",
+        origin="strategy:http-sensitive-paths",
     )
     store.save_hypothesis(hyp)
     return (
@@ -26,8 +26,8 @@ def _make_success_experiment(store, target_id="t1"):
         Experiment(
             hypothesis_id=hyp.id,
             target_id=target_id,
-            opensystem_version="0.1.0",
-            test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
+            opensystem_version="0.4.0",
+            test=TestSpec(name="t", parameters={"weakness": "http-sensitive-paths"}),
             outcome=TestOutcome.SUCCESS,
             observed_result="confirmed",
         ),
@@ -45,13 +45,13 @@ def test_finding_created_from_successful_experiment(store):
 
 
 def test_no_finding_for_failed_experiment(store):
-    hyp = Hypothesis(target_id="t1", statement="x", origin="strategy:auth-bypass")
+    hyp = Hypothesis(target_id="t1", statement="x", origin="strategy:http-sensitive-paths")
     store.save_hypothesis(hyp)
     exp = Experiment(
         hypothesis_id=hyp.id,
         target_id="t1",
-        opensystem_version="0.1.0",
-        test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
+        opensystem_version="0.4.0",
+        test=TestSpec(name="t", parameters={"weakness": "http-sensitive-paths"}),
         outcome=TestOutcome.FAILURE,
     )
     engine = FindingEngine(store)

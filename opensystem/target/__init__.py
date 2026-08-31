@@ -1,5 +1,6 @@
 """OpenSystem target abstraction."""
 
+from .http_site import HttpSiteTarget
 from .interface import (
     AdapterCapabilityError,
     Capability,
@@ -7,13 +8,12 @@ from .interface import (
     adapter_capability,
     adapter_supports,
 )
-from .mock import MockTarget
 from .registry import TargetRegistry, register_target
 
 __all__ = [
     "AdapterCapabilityError",
     "Capability",
-    "MockTarget",
+    "HttpSiteTarget",
     "TargetAdapter",
     "TargetRegistry",
     "adapter_capability",

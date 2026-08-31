@@ -24,34 +24,27 @@ scientific systems.
 
 ## Status
 
-This is **v0.3** — the adversarial campaign engine plus the proof-credential
-system. It provides:
+This is **v0.4** — a production-ready engine for real HTTP(S) targets. It
+provides:
 
 - The core adversarial loop (`OBSERVE → MODEL → HYPOTHESIZE → PLAN → TEST →
   OBSERVE → ANALYZE → UPDATE KNOWLEDGE → GENERATE NEXT HYPOTHESIS`)
-- **Campaign architecture** centered on the question *"can an actor who is
-  NOT entitled to a protected resource cause that resource to be accessed,
-  consumed, modified, or disclosed?"*
-- Protected resource, actor, entitlement, security-invariant, and objective
-  models (not hardcoded to any one scenario or URL)
-- Attack-surface discovery and attack graphs with alternative paths
-- **Impact verification**: independent re-probes confirming a finding
-  genuinely reached the protected resource
-- **Show-once proof sessions**: single-display, hash-stored, revocable proof
-  credentials bound to confirmed findings (authorized test target only)
-- **Evidence-based case studies** for confirmed findings
-- A generic, technology-agnostic target abstraction with explicit,
-  declared adapter capabilities
+- **Real HTTP(S) testing** against live web targets (stdlib `urllib`, no
+  simulation): security headers, server disclosure, directory listing,
+  sensitive paths, dangerous HTTP methods, CORS misconfiguration, cookie
+  flags, open redirects, admin exposure, error disclosure, and TLS
+- Adapter-scoped attack strategies (a live web target is only tested with
+  `http-*` probes)
+- Explicit, declared adapter capabilities (`DISCOVERY`, `TEST_PLANNING`)
 - A persistent SQLite knowledge store with tested additive migrations
 - An explicit, auditable evolution mechanism
-- A separate policy/authorization boundary (environment/scope aware)
+- A separate policy/authorization boundary (environment/scope aware,
+  `--confirm-authorized` gate for live targets)
 - A functional CLI
-- Documentation-first architecture
 
 OpenSystem does **not** yet claim to be an autonomous attacker. The current
-reasoning components are deterministic and mock-driven by design; the
-architecture makes it possible to replace them with increasingly capable
-reasoning systems later.
+reasoning components are deterministic by design; the architecture makes it
+possible to replace them with increasingly capable reasoning systems later.
 
 ## Quickstart
 
@@ -59,14 +52,18 @@ reasoning systems later.
 $ python3 -m venv .venv
 $ .venv/bin/pip install -e ".[dev]"
 $ .venv/bin/opensystem init
-$ .venv/bin/opensystem target add premium-svc --adapter mock --org ACME --env staging
-$ .venv/bin/opensystem campaign create mock premium-boundary
-$ .venv/bin/opensystem campaign run <campaign_id>
-$ .venv/bin/opensystem campaign graph <campaign_id>
+$ .venv/bin/opensystem target add mysite --adapter http \
+      --url https://mysite.example --scope "https://mysite.example/*" \
+      --confirm-authorized
+$ .venv/bin/opensystem research start mysite --rounds 20 --max-experiments 100
 $ .venv/bin/opensystem finding list
-$ .venv/bin/opensystem knowledge search "authorization"
+$ .venv/bin/opensystem knowledge search "headers"
 $ .venv/bin/opensystem status
 ```
+
+> **Authorization**: only register targets you own or have explicit permission
+> to test. The `http` adapter refuses to run without `--confirm-authorized`,
+> and every session is scoped to the recorded authorization scope.
 
 ## Philosophy
 

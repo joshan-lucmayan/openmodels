@@ -1,0 +1,1 @@
+"""OpenSystem attack journal — documents every attack with methodology."""

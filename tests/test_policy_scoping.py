@@ -15,8 +15,8 @@ from opensystem.policy.models import Operation, Policy
 
 def _target(**updates) -> Target:
     values = {
-        "name": "mock-service", "adapter": "mock",
-        "environment": "local-mock", "scope": "test",
+        "name": "www.example.com", "adapter": "http",
+        "environment": "production", "scope": "https://www.example.com/*",
     }
     values.update(updates)
     return Target(**values)
@@ -27,37 +27,41 @@ def test_default_policy_applies_to_any_target():
 
 
 def test_policy_matches_by_name_or_adapter():
-    assert Policy(target_name="mock").allows_target(_target())
-    assert Policy(target_name="mock-service").allows_target(_target())
+    assert Policy(target_name="http").allows_target(_target())
+    assert Policy(target_name="www.example.com").allows_target(_target())
     assert not Policy(target_name="other").allows_target(_target())
 
 
 def test_policy_environment_restriction():
-    policy = Policy(environment="local-mock")
+    policy = Policy(environment="production")
     assert policy.allows_target(_target())
 
-    production = Policy(environment="production")
-    assert not production.allows_target(_target(environment=""))
-    assert production.allows_target(_target(environment="production"))
+    staging = Policy(environment="staging")
+    assert not staging.allows_target(_target(environment=""))
+    assert staging.allows_target(_target(environment="staging"))
 
 
 def test_policy_scope_restriction_fails_closed():
-    policy = Policy(scope="prod")
-    assert not policy.allows_target(_target(scope="test"))
+    policy = Policy(scope="https://www.example.com/*")
+    assert not policy.allows_target(_target(scope="https://other.example/*"))
     # An undeclared target scope never matches a scoped policy.
     assert not policy.allows_target(_target(scope=""))
-    assert policy.allows_target(_target(scope="prod"))
+    assert policy.allows_target(_target(scope="https://www.example.com/*"))
 
 
 def test_enforcer_raises_for_out_of_scope_target():
-    enforcer = PolicyEnforcer(Policy(environment="production"))
+    enforcer = PolicyEnforcer(Policy(environment="staging"))
     with pytest.raises(PolicyViolation):
         enforcer.check(Operation.TEST, _target())
 
 
 def test_enforcer_allows_matching_target():
     enforcer = PolicyEnforcer(
-        Policy(target_name="mock", environment="local-mock", scope="test")
+        Policy(
+            target_name="http",
+            environment="production",
+            scope="https://www.example.com/*",
+        )
     )
     enforcer.check(Operation.TEST, _target())
 

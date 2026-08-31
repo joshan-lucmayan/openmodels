@@ -13,9 +13,11 @@ opensystem
   init               Initialize the data directory and knowledge store.
   target
     list             List available target adapters.
-    inspect <name>   Inspect a target adapter.
+    inspect <name>   Inspect a target adapter or saved target config.
+    add <name>       Register a target configuration (--adapter http,
+                     --url, --scope, --confirm-authorized).
   research
-    start <target>   Start a research session.
+    start <target>   Start a research session against a live target.
   experiment
     run <target> <hypothesis>  Run a single experiment.
   finding
@@ -26,7 +28,6 @@ opensystem
   knowledge
     search <query>   Search the knowledge store.
   status             Show status and summary.
-  security-test <target>  Run the full adversarial cycle.
 ```
 
 ## Implementation
@@ -35,10 +36,14 @@ opensystem
 - `Context` class holds references to store and registry.
 - Commands are thin: they construct the necessary objects and delegate to
   the core engine.
+- Saved target configurations (from `target add`) carry the base URL and
+  authorization scope; `research start <name>` / `experiment run <name>` /
+  `target inspect <name>` resolve them.
 
 ## Key Design Decisions
 
 - CLI is functional, not decorative. Every command does something useful.
 - Error messages are actionable (e.g., "Unknown target adapter 'foo'.
-  Available: mock").
-- The `security-test` command demonstrates the full evolution cycle.
+  Available: http").
+- Live targets require an explicit `--confirm-authorized` gate when
+  registered, and every session prints the authorization scope.

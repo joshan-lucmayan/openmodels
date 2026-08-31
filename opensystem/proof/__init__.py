@@ -1,1 +1,0 @@
-"""Proof session management."""

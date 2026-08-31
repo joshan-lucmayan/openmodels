@@ -41,7 +41,7 @@ The policy (`Policy` in `opensystem/policy/models.py`) declares:
 | `scope` | Restricts matching to targets declaring the same scope (`*` = unrestricted). |
 | `allowed_operations` | OBSERVE, TEST, RESET, DESTRUCTIVE, AUTHENTICATED, PROOF_SESSION. |
 | `max_rounds` | Cap on research rounds. |
-| `max_experiments` | Cap on experiments (enforced in research sessions and campaigns). |
+| `max_experiments` | Cap on experiments (enforced in research sessions). |
 | `allowed_credentials` | Credentials the session may use (references only). |
 | `destructive_actions_allowed` | Whether destructive actions are permitted. |
 | `stop_on_finding` | Whether to stop when a finding is produced (enforced by the research engine). |
@@ -52,8 +52,8 @@ either dimension only matches targets that declare the same value.
 ## Enforcement
 
 `PolicyEnforcer.check(operation, target)` is the **single gate**. Every test
-execution passes through it, as does proof-session creation. A disallowed
-operation raises `PolicyViolation` and stops.
+execution passes through it. A disallowed operation raises `PolicyViolation`
+and stops.
 
 Defaults are conservative:
 
@@ -68,7 +68,9 @@ The reasoning engine (`AdversarialEngine`, strategies, hypothesis/experiment/
 evolution engines) contains **no authorization logic**. All authorization
 lives in the policy layer. This separation is enforced by design: strategy
 objects never see a policy object; the orchestration engines (research,
-campaign, proof service) consult the enforcer at their action gates.
+experiment) consult the enforcer at their action gates. Live HTTP targets
+additionally require an operator authorization statement (`--confirm-
+authorized`) with a recorded scope at registration time.
 
 ## Handling of Credentials
 

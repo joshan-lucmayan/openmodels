@@ -25,11 +25,12 @@ class WebAppAdapter(TargetAdapter):
 
 ## Built-in
 
-- `mock` — `MockTarget`, the deterministic v0.1 adapter.
+- `http` — `HttpSiteTarget`, the real HTTP(S) adapter for live web targets
+  (see `docs/components/http-target.md`).
 
 ## Key Design Decisions
 
-- Registration happens at import time (the `register_target(MockTarget)` call
-  in the package).
+- Registration happens at import time (the `register_target(...)` calls in the
+  package).
 - The registry is a singleton (`_registry` module-level dict) so the engine
   and CLI share the same set.

@@ -11,7 +11,6 @@ blocked attack.
 
 - `EvolutionEngine(store)` — construct.
 - `on_experiment(experiment)` — record evolution event based on outcome.
-- `on_defense(defense, hypothesis)` — record defense application.
 - `next_hypothesis(blocked_hypothesis, alternate_keys)` — generate the next
   hypothesis from a blocked one.
 
@@ -19,8 +18,6 @@ blocked attack.
 
 - ATTACK_SUCCESS — successful strategy recorded in knowledge.
 - ATTACK_FAILURE — failed strategy recorded; alternate path generated.
-- DEFENSE_APPLIED — defense recorded in knowledge.
-- REGRESSION — regression test recorded.
 
 ## The Evolution Question
 

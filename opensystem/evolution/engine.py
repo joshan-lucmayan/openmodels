@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from opensystem.knowledge.store import KnowledgeStore
 from opensystem.models import (
-    Defense,
     EvolutionEvent,
     EvolutionTrigger,
     Experiment,
@@ -83,29 +82,6 @@ class EvolutionEngine:
             return None
 
         self._store.save_evolution_event(event)
-        return event
-
-    def on_defense(self, defense: Defense, hypothesis: Hypothesis) -> EvolutionEvent:
-        """Record that a defense was applied against a hypothesis."""
-        event = EvolutionEvent(
-            trigger=EvolutionTrigger.DEFENSE_APPLIED,
-            reason=(
-                f"Defense applied for finding {defense.finding_id}: "
-                f"{defense.description}. Hypothesis {hypothesis.id} must be "
-                "re-tested (regression)."
-            ),
-            from_hypothesis_id=hypothesis.id,
-            provenance="evolution.on_defense",
-        )
-        self._store.save_evolution_event(event)
-        self._store.save_knowledge(
-            Knowledge(
-                kind=KnowledgeKind.DEFENSE,
-                content=defense.description,
-                target_id=hypothesis.target_id,
-                provenance=f"finding:{defense.finding_id}",
-            )
-        )
         return event
 
     def next_hypothesis(

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from opensystem.evolution.engine import EvolutionEngine
 from opensystem.models import (
-    Defense,
     EvolutionTrigger,
     Experiment,
     Hypothesis,
+    HypothesisStatus,
     TestOutcome,
     TestSpec,
 )
@@ -17,14 +17,14 @@ def _make_experiment(store, outcome=TestOutcome.SUCCESS, target_id="t1"):
     hyp = Hypothesis(
         target_id=target_id,
         statement="x",
-        origin="strategy:auth-bypass",
+        origin="strategy:http-sensitive-paths",
     )
     store.save_hypothesis(hyp)
     exp = Experiment(
         hypothesis_id=hyp.id,
         target_id=target_id,
-        opensystem_version="0.1.0",
-        test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
+        opensystem_version="0.4.0",
+        test=TestSpec(name="t", parameters={"weakness": "http-sensitive-paths"}),
         outcome=outcome,
         observed_result="r",
     )
@@ -65,10 +65,12 @@ def test_next_hypothesis_after_block(store):
     engine = EvolutionEngine(store)
     hyp, _ = _make_experiment(store, TestOutcome.FAILURE)
 
-    next_hyp = engine.next_hypothesis(hyp, ["authz-ownership", "input-traversal"])
+    next_hyp = engine.next_hypothesis(
+        hyp, ["http-server-disclosure", "http-dir-listing"]
+    )
     assert next_hyp is not None
     assert next_hyp.parent_id == hyp.id
-    assert next_hyp.origin == "strategy:authz-ownership"
+    assert next_hyp.origin == "strategy:http-server-disclosure"
     assert "blocked" in next_hyp.statement
 
     events = store.list_evolution_events()
@@ -82,25 +84,13 @@ def test_next_hypothesis_skips_already_tested(store):
 
     # Both candidates already tested.
     other = Hypothesis(
-        target_id="t1", statement="y", origin="strategy:authz-ownership"
+        target_id="t1", statement="y", origin="strategy:http-server-disclosure"
     )
     store.save_hypothesis(other)
-    from opensystem.models import HypothesisStatus
-
     store.update_hypothesis_status(other.id, HypothesisStatus.REJECTED)
 
-    next_hyp = engine.next_hypothesis(hyp, ["authz-ownership", "input-traversal"])
+    next_hyp = engine.next_hypothesis(
+        hyp, ["http-server-disclosure", "http-dir-listing"]
+    )
     assert next_hyp is not None
-    assert next_hyp.origin == "strategy:input-traversal"
-
-
-def test_on_defense_records_defense_knowledge(store):
-    engine = EvolutionEngine(store)
-    hyp, _ = _make_experiment(store, TestOutcome.SUCCESS)
-    defense = Defense(finding_id="f1", description="rotated credentials")
-    event = engine.on_defense(defense, hyp)
-    assert event.trigger == EvolutionTrigger.DEFENSE_APPLIED
-
-    defenses = store.search_knowledge("rotated credentials")
-    assert len(defenses) == 1
-    assert defenses[0].kind.value == "DEFENSE"
+    assert next_hyp.origin == "strategy:http-dir-listing"

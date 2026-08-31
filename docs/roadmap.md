@@ -3,17 +3,17 @@
 This document describes the planned evolution of OpenSystem across releases.
 Every release should improve the adversarial engine.
 
-## v0.1 — Foundation (current)
+## v0.1 — Foundation (shipped, superseded)
 
 - [x] Project structure and configuration
 - [x] Core entity models (hypothesis, observation, experiment, evidence,
-      finding, defense, regression, knowledge, evolution event)
+      finding, knowledge, evolution event)
 - [x] Generic target abstraction (`TargetAdapter`)
-- [x] Deterministic mock target with 8 seeded weaknesses
+- [x] Deterministic mock target with seeded weaknesses (removed in v0.4)
 - [x] Target adapter registry
 - [x] Observation engine
 - [x] Hypothesis engine (creation and evaluation)
-- [x] Attack planner with 8 declarative strategies
+- [x] Attack planner with declarative strategies
 - [x] Experiment engine
 - [x] Evidence collector
 - [x] Finding engine with lifecycle transitions
@@ -22,44 +22,33 @@ Every release should improve the adversarial engine.
 - [x] Policy/authorization boundary
 - [x] Core adversarial loop (`AdversarialEngine`)
 - [x] CLI with all commands
-- [x] 60 tests
 - [x] Documentation (vision, architecture, threat model, attack model,
       target model, evolution, methodology, security model, glossary,
       roadmap, ADRs, component docs)
 
-## v0.2 — Adversarial Campaign Architecture
+## v0.2 — Adversarial Campaign Architecture (removed in v0.4)
 
-- [x] Protected resource model (`ProtectedResource`)
-- [x] Actor and entitlement models (`Actor`, `Entitlement`)
-- [x] Security invariants (`SecurityInvariant`) tested across interfaces
-- [x] Structured attack objectives (`AttackObjective`)
-- [x] Campaign entity (complete, resumable assessment)
-- [x] Attack-surface discovery (interfaces, resources, auth states, transitions)
-- [x] Attack graph / paths (actor → interface → resource, alternative paths)
-- [x] Campaign engine (CREATE → DISCOVER → FORMULATE → TEST → REPORT)
-- [x] Adversarial improvement cycle (enforce → revalidate)
-- [x] Target configuration via CLI (`target add`)
-- [x] Mock target security-boundary model (enforcement per interface)
-- [ ] State tracking across experiments (retain target state between rounds)
-- [ ] Multi-step attack planning (hypothesis chains)
-- [ ] Initial web/API target adapter (HTTP-based)
-- [ ] More attack families (API security, session depth)
-- [ ] Expanded knowledge query API
+The campaign/boundary model (protected resources, actors, entitlements,
+invariants, objectives, attack graphs) was built on the mock target's
+actor/resource/entitlement model. With the mock removed in v0.4, these
+subsystems and their store tables were deleted. See `CHANGELOG.md`.
 
-## v0.3 — Multi-Step Attack Planning
+## v0.3 — Impact Verification & Proof Sessions (removed in v0.4)
 
+The v0.3 release shipped impact verification, show-once proof sessions, and
+case studies. All were coupled to the mock's boundary model; they were
+removed in v0.4 when the mock was deleted.
+
+## v0.4 — Real HTTP Targets (current)
+
+- [x] Real HTTP(S) target adapter (`http`) using stdlib `urllib`
+- [x] 11 real web probes (headers, disclosure, listing, sensitive paths,
+      methods, CORS, cookies, redirects, admin, errors, TLS)
+- [x] Adapter-scoped attack strategies (`applies_to`)
+- [x] `TEST_PLANNING` capability (hypothesis → adapter-specific TestSpec)
+- [x] Live-target CLI flow with `--confirm-authorized` + scope recording
+- [x] Schema v4 migration (mock-era tables dropped)
 - [ ] Hypothesis chains (attack A → attack B → attack C)
-- [ ] State transition analysis
-- [ ] Business logic depth (multi-step workflows)
-- [ ] Cross-component reasoning (e.g., auth + storage combined)
-
-> Note: the v0.3 **release** shipped a different scope than originally
-> planned here: impact verification, show-once proof sessions, and case
-> studies (see `CHANGELOG.md`). Multi-step attack planning remains future
-> work.
-
-## v0.4 — Adaptive Attack Generation
-
 - [ ] Strategy factories that generate hypotheses from observations
 - [ ] LLM-backed hypothesis generation (optional, pluggable)
 - [ ] Dynamic strategy selection based on target model
@@ -76,7 +65,7 @@ Every release should improve the adversarial engine.
 
 - [ ] Defense-aware strategy selection (avoid previously-blocked paths)
 - [ ] Change detection on targets (re-observe, re-model)
-- [ ] Automated regression testing on target changes
+- [ ] Automated re-validation on target changes
 - [ ] Knowledge graph visualization
 - [ ] Web UI prototype
 

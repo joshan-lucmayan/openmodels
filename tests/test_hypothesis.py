@@ -9,8 +9,8 @@ from opensystem.models import Hypothesis, HypothesisStatus, TestOutcome
 def test_hypothesis_creation_and_persistence(store):
     hyp = Hypothesis(
         target_id="t1",
-        statement="authorization can be bypassed",
-        origin="strategy:authz-ownership",
+        statement="security headers can be missing",
+        origin="strategy:http-security-headers",
     )
     engine = HypothesisEngine(store)
     engine.save(hyp)
@@ -24,7 +24,7 @@ def test_evaluate_success_accepts_hypothesis(store):
     hyp = Hypothesis(
         target_id="t1",
         statement="weakness exists",
-        origin="strategy:auth-bypass",
+        origin="strategy:http-sensitive-paths",
     )
     engine = HypothesisEngine(store)
     engine.save(hyp)
@@ -34,8 +34,8 @@ def test_evaluate_success_accepts_hypothesis(store):
     exp = Experiment(
         hypothesis_id=hyp.id,
         target_id="t1",
-        opensystem_version="0.1.0",
-        test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
+        opensystem_version="0.4.0",
+        test=TestSpec(name="t", parameters={"weakness": "http-sensitive-paths"}),
         outcome=TestOutcome.SUCCESS,
     )
     status = engine.evaluate(hyp, exp)
@@ -47,7 +47,7 @@ def test_evaluate_failure_rejects_hypothesis(store):
     hyp = Hypothesis(
         target_id="t1",
         statement="weakness exists",
-        origin="strategy:auth-bypass",
+        origin="strategy:http-sensitive-paths",
     )
     engine = HypothesisEngine(store)
     engine.save(hyp)
@@ -57,8 +57,8 @@ def test_evaluate_failure_rejects_hypothesis(store):
     exp = Experiment(
         hypothesis_id=hyp.id,
         target_id="t1",
-        opensystem_version="0.1.0",
-        test=TestSpec(name="t", parameters={"weakness": "auth-bypass"}),
+        opensystem_version="0.4.0",
+        test=TestSpec(name="t", parameters={"weakness": "http-sensitive-paths"}),
         outcome=TestOutcome.FAILURE,
     )
     status = engine.evaluate(hyp, exp)
@@ -75,7 +75,7 @@ def test_evaluate_inconclusive(store):
     exp = Experiment(
         hypothesis_id=hyp.id,
         target_id="t1",
-        opensystem_version="0.1.0",
+        opensystem_version="0.4.0",
         test=TestSpec(name="t"),
         outcome=TestOutcome.INCONCLUSIVE,
     )

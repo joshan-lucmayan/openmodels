@@ -19,21 +19,14 @@ def test_target_list():
     runner = CliRunner()
     result = runner.invoke(cli, ["target", "list"])
     assert result.exit_code == 0
-    assert "mock" in result.output
-
-
-def test_target_inspect():
-    runner = CliRunner()
-    result = runner.invoke(cli, ["target", "inspect", "mock"])
-    assert result.exit_code == 0
-    assert "mock-service" in result.output
+    assert "http" in result.output
 
 
 def test_attack_list():
     runner = CliRunner()
     result = runner.invoke(cli, ["attack", "list"])
     assert result.exit_code == 0
-    assert "auth-bypass" in result.output
+    assert "http-security-headers" in result.output
 
 
 def test_unknown_target_inspect_fails():
@@ -41,3 +34,10 @@ def test_unknown_target_inspect_fails():
     result = runner.invoke(cli, ["target", "inspect", "nonexistent"])
     assert result.exit_code == 1
     assert "Unknown target adapter" in result.output
+
+
+def test_attack_list_has_no_mock_strategies():
+    runner = CliRunner()
+    result = runner.invoke(cli, ["attack", "list"])
+    assert result.exit_code == 0
+    assert "auth-bypass" not in result.output

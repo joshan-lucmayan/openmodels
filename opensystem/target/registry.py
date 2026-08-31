@@ -7,8 +7,8 @@ LLM service, simulation, …) is registered without touching the engine.
 
 from __future__ import annotations
 
+from opensystem.target.http_site import HttpSiteTarget
 from opensystem.target.interface import TargetAdapter
-from opensystem.target.mock import MockTarget
 
 _registry: dict[str, type[TargetAdapter]] = {}
 
@@ -48,4 +48,4 @@ class TargetRegistry:
 
 
 # Register built-in adapters at import time.
-register_target(MockTarget)
+register_target(HttpSiteTarget)

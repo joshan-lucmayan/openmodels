@@ -1,5 +1,73 @@
 # Changelog
 
+## v0.4.1 — Attack Journal (encrypted at rest) (2026-08-31)
+
+### Added
+
+- **Attack journal** (`opensystem/journal/`): every attack OpenSystem
+  performs is recorded with its documented methodology (from the playbook),
+  the runtime specifics (target URL, test parameters, observed result), the
+  outcome, and the collected evidence.
+- **Attack playbook**: a canonical, human-readable account of how each of
+  the 11 HTTP attack types is performed and why it matters.
+- **Encrypted-at-rest journal**: the journal content (methodology, observed
+  results, targets, details) is encrypted with AES-256-GCM when locked. The
+  owner sets a password; reading requires it. The password is never stored —
+  only a PBKDF2 verifier. Without the password, journal content is
+  unreadable even to someone with the database file.
+- **Journal CLI commands**: `journal list`, `journal show`, `journal export`,
+  `journal playbook`, `journal lock`, `journal unlock`, `journal status`.
+- New dependency: `cryptography` (AES-256-GCM + PBKDF2).
+
+### Changed
+
+- Schema `SCHEMA_VERSION` bumped to 5 (adds `journal_entries` table).
+
+## v0.4.0 — Real HTTP Targets, Mock Removed (2026-08-31)
+
+### Removed
+
+- **The mock target adapter is gone.** `MockTarget` and all mock-only
+  subsystems that depended on its actor/resource/entitlement model were
+  removed: the campaign engine, proof-key sessions, impact verification,
+  case studies, defenses/regressions, and the `security-test` command. The
+  product now ships with a single production adapter: the real HTTP(S)
+  target.
+- Mock weakness-model attack strategies (`auth-bypass`, `authz-ownership`,
+  …) removed from the planner; only `http-*` strategies remain, scoped to
+  the `http` adapter via `AttackStrategy.applies_to`.
+- Removed `Capability` members with no remaining consumer (`SECURITY_MODEL`,
+  `ENTITLEMENT`, `ENFORCEMENT`, `DEFENSE`, `IMPACT_PROBE`,
+  `PROOF_SESSION`).
+- Removed campaign/proof/impact/defense/regression models and their store
+  tables (dropped by schema migration v3 → v4).
+
+### Added
+
+- **Real HTTP(S) target adapter** (`opensystem/target/http_site.py`):
+  genuine network probes over stdlib `urllib` — no simulation. Tests:
+  security headers, server disclosure, directory listing, sensitive paths,
+  dangerous HTTP methods, CORS, cookie flags, open redirects, admin
+  exposure, error disclosure, and TLS.
+- **`Capability.TEST_PLANNING`**: adapters translate a `Hypothesis` into an
+  adapter-specific `TestSpec`; the experiment engine delegates when declared
+  and falls back otherwise.
+- **Adapter-scoped strategies** (`applies_to`): a live web target is only
+  tested with `http-*` probes; blocked-path evolution stays within the
+  adapter's strategy set.
+- **Live-target CLI flow**: `target add <name> --adapter http --url … --
+  confirm-authorized --scope …` then `research start <name>` runs the full
+  loop against the real site. Authorization scope is recorded and enforced
+  via policy scoping.
+
+### Changed
+
+- `Policy` and research sessions scope to the resolved target's adapter,
+  environment, and authorization scope.
+- Schema `SCHEMA_VERSION` bumped to 4; legacy databases are migrated in
+  place (research data preserved, mock-era tables dropped).
+- Target ID includes host+port so distinct live servers never collide.
+
 ## v0.3.1 — Truth-in-Output, Structured Findings, Store Hardening (2026-08-30)
 
 ### Changed

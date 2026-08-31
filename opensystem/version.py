@@ -1,9 +1,10 @@
 """OpenSystem version."""
 
-__version__ = "0.3.1"
+__version__ = "0.4.1"
 
 # Schema version for the knowledge store. Bump when migrations are required.
-# 2 — v0.3 proof-session, impact-verification, and case-study tables.
-# 3 — structured finding identities (objective/actor/resource/interface)
-#     and campaign_id on attack paths.
-SCHEMA_VERSION = 3
+# 4 — v0.4: drop mock-boundary-era tables (defenses, regressions, campaigns,
+#     proof sessions, impact verifications, case studies, actors, resources,
+#     entitlements, invariants, objectives, surfaces, paths).
+# 5 — v0.4.1: journal_entries table (attack journaling).
+SCHEMA_VERSION = 5

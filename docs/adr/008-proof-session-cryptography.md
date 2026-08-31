@@ -1,7 +1,7 @@
 # ADR 008 — Proof-Session Cryptography and Design
 
-- **Status**: Accepted
-- **Date**: 2026-08-29
+- **Status**: Superseded (removed in v0.4)
+- **Date**: 2026-08-29 (superseded 2026-08-31)
 
 ## Context
 

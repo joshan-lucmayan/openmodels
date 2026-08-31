@@ -120,28 +120,12 @@ OpenSystem never claims a target is "secure". It reports what it did:
 
 Statuses distinguish: TESTED, VERIFIED, FAILED, BLOCKED, UNKNOWN, UNTESTED.
 
-## v0.2 — The Security-Boundary Perspective
+## v0.2 — The Security-Boundary Perspective (removed in v0.4)
 
-The campaign architecture reframes the attack model around protected
-resources and entitlements. The fundamental question becomes:
-
-> "Can an actor who is NOT entitled to a protected resource cause that
-> resource to be accessed, consumed, modified, or disclosed?"
-
-Instead of "can weakness X be demonstrated?", OpenSystem asks: for each
-actor/resource pair where the actor lacks entitlement, does the target
-actually enforce the boundary across every interface that exposes the
-resource?
-
-The attack model is now:
-
-```
-Actor → Interface → Operation → Authorization boundary → Protected resource
-```
-
-Each path is an `AttackPath` with an entitlement decision and a test outcome.
-Boundaries may hold on some interfaces and fail on others — alternative paths
-are represented separately in the attack graph.
-
-See [`campaign-model.md`](campaign-model.md) for the full campaign
-architecture.
+The v0.2 campaign architecture reframed the attack model around protected
+resources, actors, and entitlements ("can an actor who is NOT entitled to a
+protected resource cause that resource to be accessed?"). It was built on the
+mock target's actor/resource/entitlement model. When the mock was removed in
+v0.4, the campaign engine and its boundary model were removed. OpenSystem's
+current attack model is the v0.1 hypothesis-test loop applied to real HTTP(S)
+targets (see [`target-model.md`](target-model.md)).

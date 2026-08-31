@@ -7,7 +7,7 @@
 
 OpenSystem requires that the research process be represented as explicit,
 structured, persistable entities — never unstructured text. The entities
-(hypothesis, observation, experiment, evidence, finding, defense, regression,
+(hypothesis, observation, experiment, evidence, finding, journal entry,
 knowledge, evolution event) must validate, serialize cleanly to SQLite, and
 support future reasoning.
 

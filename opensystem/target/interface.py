@@ -31,27 +31,15 @@ class Capability(str, Enum):
     violation (a bug), while an undeclared capability is simply unsupported.
     """
 
+    TEST_PLANNING = "test_planning"
+    """plan_test() — translate a Hypothesis into a concrete, adapter-specific
+    TestSpec. Adapters that require protocol-specific test parameters
+    declare this; the experiment engine delegates TestSpec construction to
+    them instead of assuming the mock weakness model."""
+
     DISCOVERY = "discovery"
     """describe_interfaces / describe_resources / describe_actors /
     describe_auth_states / describe_transitions."""
-
-    SECURITY_MODEL = "security_model"
-    """actors() / resources() model accessors for campaign bootstrap."""
-
-    ENTITLEMENT = "entitlement"
-    """entitlement_decision() — declared actor→resource entitlements."""
-
-    ENFORCEMENT = "enforcement"
-    """enforce() — defender enforces a boundary on the target (v0.2 model)."""
-
-    DEFENSE = "defense"
-    """defend() — defender patches a weakness on the target (v0.1 model)."""
-
-    IMPACT_PROBE = "impact_probe"
-    """probe_impact() — independent protected-resource reachability probe."""
-
-    PROOF_SESSION = "proof_session"
-    """The target environment supports show-once proof sessions."""
 
 
 class AdapterCapabilityError(Exception):

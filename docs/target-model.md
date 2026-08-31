@@ -60,18 +60,22 @@ register_target(WebAppAdapter)
 New adapters (web/API, LLM service, simulation, …) are added without touching
 the engine.
 
-## The Mock Target
+## The HTTP Target Adapter
 
-The v0.1 shipped adapter is `MockTarget` (`opensystem/target/mock.py`). It
-models a system as a set of weaknesses, each either *active* (exploitable) or
-*blocked* (defended):
+The shipped adapter is `HttpSiteTarget` (`opensystem/target/http_site.py`),
+the real HTTP(S) target for live web applications. It speaks genuine HTTP
+over the network (stdlib `urllib`) — no simulation:
 
-- A test names a `weakness` key.
-- Active → `SUCCESS`; blocked → `FAILURE`; unknown → `INCONCLUSIVE`.
+- `discover()` probes the base URL and builds the `Target` model from real
+  responses.
+- `execute_test()` dispatches on `parameters["weakness"]` to real web probes
+  (security headers, disclosure, listing, sensitive paths, methods, CORS,
+  cookies, redirects, admin exposure, errors, TLS).
+- Declares `DISCOVERY` and `TEST_PLANNING` capabilities; the experiment
+  engine uses `plan_test()` to build adapter-specific test specs.
 
-It also exposes `defend()` (simulating the defender patching a weakness) which
-drives the evolution/regression demonstration. The mock is deterministic and
-safe, giving the engine a real — but controllable — target.
+Live targets require an explicit authorization statement (`--confirm-
+authorized`) and a recorded scope at registration time.
 
 ## Supported Target Classes (future)
 
@@ -96,41 +100,12 @@ simulations, and other computational systems.
    records and evolution events.
 
 A future attacker can reconstruct the model from the knowledge store: "What
-did we previously try? What failed? What defense stopped it? What changed?"
+did we previously try? What failed? What changed?"
 
-## v0.2 — Actors, Entitlements, and Protected Resources
-
-The v0.2 campaign architecture adds a security-boundary perspective to the
-target model. OpenSystem models what is *protected*, who may access it, and
-whether the target actually enforces the declared boundaries.
-
-```
-Target
- ├── Protected Resources   — what an unauthorized actor must NOT access
- ├── Actors                — who may (or may not) be entitled
- ├── Entitlements          — declared access rights
- ├── Security Invariants   — boundaries that MUST hold
- ├── Interfaces            — the surfaces where boundaries are tested
- └── Attack surface        — the reachable graph of the above
-```
-
-### Target Configuration
+## Target Configuration
 
 Deployment-time targets are described with `TargetConfig` (via
 `opensystem target add`), which records target name, type, organization,
 environment, authorized scope, available interfaces, test credentials,
-protected resources, testing policy, time window, and emergency-stop
-configuration. The core engine does NOT assume every target is a website.
-
-### Adapter Security-Boundary Protocol
-
-Adapters that model security boundaries expose additional optional methods:
-
-- `describe_resources()` — the protected resources
-- `describe_actors()` — the actors
-- `describe_interfaces()` — the reachable interfaces
-- `describe_auth_states()` / `describe_transitions()` — states and transitions
-- `entitlement_decision(actor, resource, action)` — the declared entitlement
-
-These feed attack-surface discovery and objective formulation. See
-[`campaign-model.md`](campaign-model.md).
+testing policy, and emergency-stop configuration. Live HTTP targets also
+carry their base URL and TLS-verification setting.

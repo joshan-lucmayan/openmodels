@@ -13,7 +13,6 @@ HYPOTHESIS.
 - `AdversarialEngine(store, policy, planner)` — construct with dependencies.
 - `research(target, rounds)` — run a research session; returns `ResearchReport`.
 - `run_experiment(target, hypothesis)` — run a single experiment.
-- `security_test(target, rounds)` — run the full attack → defend → evolve cycle.
 
 ## Key Design Decisions
 
@@ -21,8 +20,8 @@ HYPOTHESIS.
   does not implement their logic.
 - The `research()` method is the canonical loop. It is deterministic and
   honors the policy boundary.
-- `security_test()` is a convenience for demonstrating the full cycle; it
-  applies defenses to findings and re-runs research.
+- Blocked hypotheses evolve into alternate-path hypotheses from the same
+  target adapter's strategy set.
 
 ## Data Flow
 

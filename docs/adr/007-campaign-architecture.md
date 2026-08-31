@@ -1,7 +1,7 @@
 # ADR 007 — Campaign Architecture for v0.2
 
-- **Status**: Accepted
-- **Date**: 2026-08-29
+- **Status**: Superseded (removed in v0.4)
+- **Date**: 2026-08-29 (superseded 2026-08-31)
 
 ## Context
 

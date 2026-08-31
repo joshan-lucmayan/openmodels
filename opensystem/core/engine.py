@@ -21,12 +21,11 @@ from opensystem.evolution.engine import EvolutionEngine
 from opensystem.experiment.engine import ExperimentEngine
 from opensystem.finding.engine import FindingEngine
 from opensystem.hypothesis.engine import HypothesisEngine
+from opensystem.journal.engine import JournalEngine
 from opensystem.knowledge.store import KnowledgeStore
 from opensystem.models import (
-    Defense,
     Experiment,
     Finding,
-    FindingStatus,
     Hypothesis,
     HypothesisStatus,
     Knowledge,
@@ -38,11 +37,7 @@ from opensystem.models import (
 from opensystem.observation.engine import ObservationEngine
 from opensystem.policy.engine import PolicyEnforcer
 from opensystem.policy.models import Policy, StopReason
-from opensystem.target.interface import (
-    Capability,
-    TargetAdapter,
-    adapter_capability,
-)
+from opensystem.target.interface import TargetAdapter
 
 
 class AdversarialEngine:
@@ -64,6 +59,7 @@ class AdversarialEngine:
         self._experiments = ExperimentEngine(store, self._policy_enforcer)
         self._findings = FindingEngine(store)
         self._evolution = EvolutionEngine(store)
+        self._journal = JournalEngine(store)
 
     @property
     def store(self) -> KnowledgeStore:
@@ -131,6 +127,12 @@ class AdversarialEngine:
             experiments_run += 1
             report.experiments_run += 1
             report.rounds_executed += 1
+
+            # JOURNAL — record the attack with full methodology + runtime detail.
+            self._journal.record_experiment(
+                target_model, hypothesis, experiment,
+                detail=experiment.test.parameters,
+            )
 
             # OBSERVE RESULT + ANALYZE
             self._hypotheses.evaluate(hypothesis, experiment)
@@ -209,6 +211,10 @@ class AdversarialEngine:
         experiment = self._experiments.run(hypothesis, target, target_model)
         self._hypotheses.evaluate(hypothesis, experiment)
         self._evolution.on_experiment(experiment)
+        self._journal.record_experiment(
+            target_model, hypothesis, experiment,
+            detail=experiment.test.parameters,
+        )
         if experiment.outcome == TestOutcome.SUCCESS:
             self._findings.create_from_experiment(experiment, target_model.id)
         return experiment
@@ -216,116 +222,21 @@ class AdversarialEngine:
     def _evolve_from_blocked(
         self, blocked: Hypothesis, target_model: Target
     ) -> Hypothesis | None:
-        """Evolve a blocked hypothesis into an alternate-path hypothesis."""
+        """Evolve a blocked hypothesis into an alternate-path hypothesis.
+
+        Only strategies applicable to the target's adapter are considered —
+        a weakness strategy from another adapter must never be evolved
+        against this target.
+        """
+        blocked_key = blocked.origin.replace("strategy:", "")
         alternate = [
             s.weakness_key
             for s in self._planner.strategies.values()
-            if s.weakness_key is not None and s.weakness_key != blocked.origin.replace("strategy:", "")
+            if s.weakness_key is not None
+            and s.weakness_key != blocked_key
+            and (
+                s.applies_to is None
+                or target_model.adapter in s.applies_to
+            )
         ]
         return self._evolution.next_hypothesis(blocked, alternate)
-
-    # ------------------------------------------------------------------ #
-    # Full adversarial / defender cycle (demonstration)
-    # ------------------------------------------------------------------ #
-
-    def security_test(
-        self, target: TargetAdapter, rounds: int | None = None
-    ) -> dict:
-        """Run the full adversarial cycle: attack → findings → defender →
-        regression → evolve → new attack.
-
-        This is a *demonstration* of the evolution loop, not a claim that the
-        engine is autonomous. The defender step is simulated by the caller
-        (here: applied directly against the mock target).
-        """
-        first = self.research(target, rounds)
-
-        results: dict = {
-            "first_round": first,
-            "defenses": [],
-            "regressions": [],
-            "second_round": None,
-        }
-
-        findings = self._store.list_findings(first.target_id)
-        for finding in findings:
-            if finding.verification_status == FindingStatus.CLOSED:
-                continue
-            self._apply_defense(target, finding)
-
-        results["defenses"] = self._store.list_defenses()
-        results["regressions"] = self._store.list_regressions(first.target_id)
-
-        second = self.research(target, rounds)
-        results["second_round"] = second
-        return results
-
-    def _apply_defense(self, target: TargetAdapter, finding: Finding) -> Defense:
-        """Apply a defense for a finding on the target (if supported).
-
-        The Defense record states what actually happened: when the target
-        cannot defend the affected component (or already did), the record
-        says so and no regression is claimed.
-        """
-        defend = adapter_capability(target, Capability.DEFENSE, "defend")
-        weakness_key = finding.affected_component
-        applied = bool(defend(weakness_key)) if defend is not None else False
-
-        defense = Defense(
-            finding_id=finding.id,
-            description=(
-                f"Defense applied for {weakness_key}." if applied
-                else f"Defense not applicable on this target: {weakness_key}."
-            ),
-        )
-        self._store.save_defense(defense)
-
-        if applied:
-            self._store.update_finding_status(finding.id, FindingStatus.MITIGATION)
-
-            hypothesis = None
-            if finding.hypothesis_id:
-                hypothesis = self._store.get_hypothesis(finding.hypothesis_id)
-            if hypothesis is not None:
-                self._evolution.on_defense(defense, hypothesis)
-                self._record_regression(target, defense, hypothesis, finding)
-
-        return defense
-
-    def _record_regression(
-        self,
-        target: TargetAdapter,
-        defense: Defense,
-        hypothesis: Hypothesis,
-        finding: Finding,
-    ) -> None:
-        """Re-test a defended hypothesis to prove the weakness stays fixed."""
-        from opensystem.models import Experiment, Regression, TestSpec
-
-        test_spec = TestSpec(
-            name=f"regression-{hypothesis.origin}",
-            description=hypothesis.statement,
-            parameters={"weakness": hypothesis.origin.replace("strategy:", "")},
-        )
-        result = target.execute_test(test_spec)
-        experiment = Experiment(
-            hypothesis_id=hypothesis.id,
-            target_id=finding.target_id,
-            opensystem_version=VERSION,
-            test=test_spec,
-            observed_result=result.observed_result,
-            outcome=result.outcome,
-            conclusion=(
-                f"Regression after defense: outcome {result.outcome.value}"
-            ),
-        )
-        self._store.save_experiment(experiment)
-
-        regression = Regression(
-            defense_id=defense.id,
-            hypothesis_id=hypothesis.id,
-            target_id=finding.target_id,
-            outcome=result.outcome,
-            detail=f"Regression for finding {finding.id}",
-        )
-        self._store.save_regression(regression)

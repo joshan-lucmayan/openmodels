@@ -20,7 +20,7 @@ from opensystem.models import (
 )
 from opensystem.policy.engine import PolicyEnforcer
 from opensystem.policy.models import Operation
-from opensystem.target.interface import TargetAdapter
+from opensystem.target.interface import Capability, TargetAdapter, adapter_capability
 
 
 class ExperimentEngine:
@@ -47,14 +47,7 @@ class ExperimentEngine:
         The experiment and its evidence are persisted in one transaction; the
         experiment row is written once, with its evidence links included.
         """
-        test_spec = TestSpec(
-            name=f"test-{hypothesis.origin}",
-            description=hypothesis.statement,
-            parameters={
-                "weakness": hypothesis.origin.replace("strategy:", ""),
-            },
-            expected_outcome=self._expected_outcome(hypothesis),
-        )
+        test_spec = self._plan_test(hypothesis, target, target_model)
 
         self._policy.check(Operation.TEST, target_model)
 
@@ -78,6 +71,30 @@ class ExperimentEngine:
             self._store.save_experiment(experiment)
 
         return experiment
+
+    @staticmethod
+    def _plan_test(
+        hypothesis: Hypothesis,
+        target: TargetAdapter,
+        target_model: Target,
+    ) -> TestSpec:
+        """Build the concrete TestSpec for a hypothesis.
+
+        Adapters declaring the TEST_PLANNING capability translate the
+        hypothesis themselves (protocol-specific parameters). Otherwise the
+        default v0.1 mock weakness model applies.
+        """
+        plan_fn = adapter_capability(target, Capability.TEST_PLANNING, "plan_test")
+        if plan_fn is not None:
+            return plan_fn(hypothesis, target_model)
+        return TestSpec(
+            name=f"test-{hypothesis.origin}",
+            description=hypothesis.statement,
+            parameters={
+                "weakness": hypothesis.origin.replace("strategy:", ""),
+            },
+            expected_outcome=ExperimentEngine._expected_outcome(hypothesis),
+        )
 
     @staticmethod
     def _expected_outcome(hypothesis: Hypothesis) -> str:

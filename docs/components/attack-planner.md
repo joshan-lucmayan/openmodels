@@ -17,8 +17,9 @@ Holds attack strategies and generates hypotheses from them.
 
 ## Strategy Types
 
-1. **Declarative** (`AttackStrategy`): a named family with a `weakness_key`.
-   The default set covers 8 attack classes across 8 families.
+1. **Declarative** (`AttackStrategy`): a named family with a `weakness_key`
+   and optional `applies_to` adapter scoping. The default HTTP set covers 11
+   attack classes across 8 families, each scoped to the `http` adapter.
 2. **Factory** (callable): receives `(target, observations, store)` and
    returns `list[Hypothesis]`. This is the extension point for future
    reasoning-based planners.
@@ -26,6 +27,8 @@ Holds attack strategies and generates hypotheses from them.
 ## Key Design Decisions
 
 - The planner is a strategy system, not a hardcoded list of attacks.
-- Hypotheses for already-blocked paths are still generated (re-testing =
-   regression testing).
+- Strategies are scoped by adapter (`applies_to`): a strategy registered for
+  `("mock",)` never generates hypotheses for an HTTP target, and vice versa.
+- Hypotheses for already-blocked paths are still generated (re-testing
+  validates that blocked paths remain blocked).
 - Deduplication: statements already accepted are skipped.

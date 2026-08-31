@@ -19,15 +19,13 @@ Terms used throughout the project.
 
 ## D
 
-- **Defense** — a mitigation applied by the defender; a first-class persisted
-  entity.
 - **Defender** — the operator who fixes weaknesses OpenSystem finds.
 
 ## E
 
 - **Evidence** — structured data supporting an experiment or finding.
 - **Evolution** — the mechanism by which OpenSystem generates new hypotheses
-  after defenses are introduced; auditable via EvolutionEvents.
+  after attacks are blocked; auditable via EvolutionEvents.
 - **Evolution event** — an auditable record of an evolution step with trigger,
   reason, and provenance.
 - **Experiment** — a single fully-recorded test of a hypothesis.
@@ -42,17 +40,17 @@ Terms used throughout the project.
 - **Hypothesis** — a testable claim about a potential weakness; structured,
   with status and lineage.
 
+## J
+
+- **Journal** — the attack journal: a detailed, encrypted-at-rest record of
+  every attack OpenSystem performed, with methodology and runtime specifics.
+
 ## K
 
 - **Knowledge store** — the persistent store of observations, hypotheses,
-  experiments, findings, defenses, and knowledge records.
+  experiments, findings, and knowledge records.
 - **Knowledge record** — a persisted piece of learned knowledge with kind and
   provenance.
-
-## M
-
-- **Mock target** — the deterministic v0.1 target adapter used to exercise the
-  engine.
 
 ## O
 
@@ -67,7 +65,6 @@ Terms used throughout the project.
 
 ## R
 
-- **Regression** — a re-test proving a previously-found weakness stays fixed.
 - **Research report** — the evidence-based aggregate result of a session.
 
 ## S

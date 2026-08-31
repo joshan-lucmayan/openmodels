@@ -6,10 +6,10 @@
 ## Context
 
 OpenSystem must persist a growing research graph: observations, hypotheses,
-experiments, evidence, findings, defenses, regressions, knowledge, and
-evolution events. It must support historical reasoning queries ("what did we
-try?", "what failed?", "what defense stopped it?"). The storage choice should
-not over-commit the project to infrastructure it does not yet need.
+experiments, evidence, findings, journal entries, knowledge, and evolution
+events. It must support historical reasoning queries ("what did we try?",
+"what failed?", "what changed?"). The storage choice should not over-commit
+the project to infrastructure it does not yet need.
 
 ## Options Considered
 

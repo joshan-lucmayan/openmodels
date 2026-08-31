@@ -1,20 +1,19 @@
 """Persistent knowledge store (Phase 10).
 
-OpenSystem uses SQLite as its initial persistent store. This decision was
-made because:
+OpenSystem uses SQLite as its persistent store. This decision was made
+because:
 
 - SQLite is zero-configuration and built into Python's standard library.
-- For single-instance, single-user deployments — the expected usage pattern
-  during early development — SQLite is more than sufficient.
+- For single-instance, single-user deployments — the expected usage pattern —
+  SQLite is more than sufficient.
 - It avoids external database-server dependencies.
 - The schema is defined as pydantic model serialization, so migration to
   PostgreSQL or another backend is a matter of swapping the store
   implementation behind the same interface.
 
 The store records everything: observations, hypotheses, experiments, evidence,
-findings, defenses, regressions, knowledge, and evolution events. A future
-attacker can ask questions like "What did we previously try?", "What failed?",
-"What defense stopped it?", "What changed since then?".
+findings, knowledge, and evolution events. A future attacker can ask questions
+like "What did we previously try?", "What failed?", "What changed since then?".
 
 Write semantics
 ---------------
@@ -23,9 +22,9 @@ Two intentional write policies exist (see ADR 005 for the integrity model):
 - **Append-only** (audit/history records): ``INSERT ... ON CONFLICT(id) DO
   NOTHING``. The first version of a record wins; a repeated save can never
   silently overwrite history.
-- **Upsert** (mutable state such as campaigns, findings status, targets):
-  ``INSERT OR REPLACE`` with a stable id. Re-saving a mutated model is an
-  intentional update.
+- **Upsert** (mutable state such as findings status, targets): ``INSERT OR
+  REPLACE`` with a stable id. Re-saving a mutated model is an intentional
+  update.
 
 Schema upgrades run through :data:`MIGRATIONS` — ordered, deterministic steps
 keyed by schema version. Fresh databases receive the baseline schema directly;
@@ -45,16 +44,6 @@ from typing import Any
 
 from opensystem import VERSION
 from opensystem.models import (
-    Actor,
-    ActorKind,
-    AttackObjective,
-    AttackPath,
-    AttackSurface,
-    Campaign,
-    CampaignStatus,
-    CaseStudy,
-    Defense,
-    Entitlement,
     Evidence,
     EvidenceKind,
     EvolutionEvent,
@@ -64,19 +53,11 @@ from opensystem.models import (
     FindingStatus,
     Hypothesis,
     HypothesisStatus,
-    ImpactVerification,
-    InvariantStatus,
+    JournalEntry,
     Knowledge,
     KnowledgeKind,
-    ObjectiveStatus,
     Observation,
-    ProofSession,
-    ProofSessionStatus,
-    ProtectedResource,
-    ProtectedResourceType,
-    Regression,
     ResearchReport,
-    SecurityInvariant,
     Severity,
     Target,
     TestOutcome,
@@ -115,133 +96,26 @@ def _table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
     return {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
 
 
-def _parse_legacy_component(component: str) -> tuple[str, str, str] | None:
-    """Parse a legacy ``affected_component`` display string.
-
-    Legacy campaign findings formatted the attack path as::
-
-        actor=KIND/name → interface=[iface] → resource=name
-
-    Returns (actor_name, interface, resource_name), or None if the string
-    does not match the legacy format. Unparseable strings are never guessed
-    at: structured identity fields are simply left empty.
-    """
-    parts = [p.strip() for p in (component or "").split("→")]
-    if len(parts) != 3:
-        return None
-    actor_part, interface_part, resource_part = parts
-    if not (
-        actor_part.startswith("actor=")
-        and interface_part.startswith("interface=")
-        and resource_part.startswith("resource=")
-    ):
-        return None
-    actor_name = actor_part.split("=", 1)[1].split("/")[-1].strip()
-    interface = interface_part.split("=", 1)[1].strip(" []")
-    resource_name = resource_part.split("=", 1)[1].strip()
-    if not actor_name or not interface or not resource_name:
-        return None
-    return actor_name, interface, resource_name
-
-
-def _backfill_finding_identities(conn: sqlite3.Connection) -> None:
-    """Best-effort backfill of structured identities on legacy findings.
-
-    Only identities that can be resolved against persisted actors and
-    protected resources are filled; everything else stays empty and the
-    original display string is preserved untouched.
-    """
-    rows = conn.execute(
-        "SELECT id, affected_component FROM findings "
-        "WHERE actor_id IS NULL AND affected_component != ''"
-    ).fetchall()
-    for finding_id, component in rows:
-        parsed = _parse_legacy_component(component)
-        if parsed is None:
-            continue
-        actor_name, interface, resource_name = parsed
-        conn.execute(
-            "UPDATE findings SET interface = ? WHERE id = ?",
-            (interface, finding_id),
-        )
-        actor = conn.execute(
-            "SELECT id FROM actors WHERE name = ?", (actor_name,)
-        ).fetchone()
-        resource = conn.execute(
-            "SELECT id FROM protected_resources WHERE name = ?", (resource_name,)
-        ).fetchone()
-        if actor is not None:
-            conn.execute(
-                "UPDATE findings SET actor_id = ? WHERE id = ?",
-                (actor["id"], finding_id),
-            )
-        if resource is not None:
-            conn.execute(
-                "UPDATE findings SET resource_id = ? WHERE id = ?",
-                (resource["id"], finding_id),
-            )
-
-
 def _migrate_v1_to_v2(conn: sqlite3.Connection) -> None:
-    """v0.2 → v0.3: impact verifications, proof sessions, case studies."""
-    conn.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS impact_verifications (
-            id          TEXT PRIMARY KEY,
-            finding_id  TEXT NOT NULL,
-            verifier    TEXT DEFAULT 'ImpactVerifier',
-            verified    INTEGER NOT NULL DEFAULT 0,
-            method      TEXT DEFAULT '',
-            detail      TEXT DEFAULT '{}',
-            verified_at TEXT NOT NULL
-        );
+    """v0.2 → v0.3: no-op.
 
-        CREATE TABLE IF NOT EXISTS proof_sessions (
-            id               TEXT PRIMARY KEY,
-            finding_id       TEXT NOT NULL,
-            campaign_id      TEXT DEFAULT '',
-            target_id        TEXT NOT NULL,
-            target_adapter   TEXT DEFAULT '',
-            actor_id         TEXT NOT NULL,
-            resource_id      TEXT NOT NULL,
-            username         TEXT DEFAULT '',
-            key_hash         TEXT NOT NULL,
-            status           TEXT NOT NULL DEFAULT 'ACTIVE',
-            created_at       TEXT NOT NULL,
-            expires_at       TEXT NOT NULL,
-            revoked_at       TEXT,
-            last_used_at     TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS case_studies (
-            id          TEXT PRIMARY KEY,
-            finding_id  TEXT NOT NULL,
-            title       TEXT DEFAULT '',
-            body        TEXT DEFAULT '{}',
-            created_at  TEXT NOT NULL
-        );
-        """
-    )
+    The v0.2-era tables (impact verifications, proof sessions, case studies)
+    were removed in v0.4 and are no longer created. This step exists only to
+    keep the migration chain continuous for legacy databases.
+    """
 
 
 def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:
-    """v0.3 → v0.3.1: structured finding identities + campaign-linked paths.
+    """v0.3 → v0.3.1: structured finding identities + environment/scope.
 
-    Additive only. Legacy findings get a best-effort backfill of their
-    structured identities; unresolvable ones keep empty fields. Targets
-    gain declared environment/scope columns (left empty for legacy rows —
-    undeclared scopes fail closed in policy matching).
+    Additive only. Targets gain declared environment/scope columns (left
+    empty for legacy rows — undeclared scopes fail closed in policy
+    matching).
     """
-    findings_cols = _table_columns(conn, "findings")
+    finding_cols = _table_columns(conn, "findings")
     for column in ("objective_id", "actor_id", "resource_id", "interface"):
-        if column not in findings_cols:
+        if column not in finding_cols:
             conn.execute(f"ALTER TABLE findings ADD COLUMN {column} TEXT")
-
-    path_cols = _table_columns(conn, "attack_paths")
-    if "campaign_id" not in path_cols:
-        conn.execute(
-            "ALTER TABLE attack_paths ADD COLUMN campaign_id TEXT DEFAULT ''"
-        )
 
     target_cols = _table_columns(conn, "targets")
     for column in ("environment", "scope"):
@@ -250,20 +124,58 @@ def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:
                 f"ALTER TABLE targets ADD COLUMN {column} TEXT DEFAULT ''"
             )
 
-    conn.executescript(
+
+def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
+    """v0.3.1 → v0.4: drop mock-boundary-era tables.
+
+    The campaign/proof/impact/defense subsystems were removed when the mock
+    target was deleted. Their tables are dropped; the surviving research
+    tables are untouched.
+    """
+    dropped = (
+        "defenses", "regressions", "protected_resources", "actors",
+        "entitlements", "security_invariants", "attack_objectives",
+        "campaigns", "attack_surfaces", "attack_paths",
+        "impact_verifications", "proof_sessions", "case_studies",
+    )
+    for table in dropped:
+        conn.execute(f"DROP TABLE IF EXISTS {table}")
+
+
+def _migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
+    """v0.4 → v0.4.1: attack journal table."""
+    conn.execute(
         """
-        CREATE INDEX IF NOT EXISTS idx_findings_boundary
-            ON findings(target_id, actor_id, resource_id, interface);
-        CREATE INDEX IF NOT EXISTS idx_attack_paths_campaign
-            ON attack_paths(campaign_id);
+        CREATE TABLE IF NOT EXISTS journal_entries (
+            id             TEXT PRIMARY KEY,
+            target_id      TEXT NOT NULL,
+            target_url     TEXT DEFAULT '',
+            attack_key     TEXT DEFAULT '',
+            attack_name    TEXT DEFAULT '',
+            family         TEXT DEFAULT '',
+            outcome        TEXT NOT NULL DEFAULT 'INCONCLUSIVE',
+            summary        TEXT DEFAULT '',
+            how_it_was_done TEXT DEFAULT '',
+            observed_result TEXT DEFAULT '',
+            detail         TEXT DEFAULT '{}',
+            evidence_ids   TEXT DEFAULT '[]',
+            hypothesis_id  TEXT,
+            experiment_id  TEXT,
+            created_at     TEXT NOT NULL
+        )
         """
     )
-    _backfill_finding_identities(conn)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_journal_target ON "
+        "journal_entries(target_id)"
+    )
 
 
 MIGRATIONS: dict[int, Callable[[sqlite3.Connection], None]] = {
     2: _migrate_v1_to_v2,
     3: _migrate_v2_to_v3,
+    4: _migrate_v3_to_v4,
+    5: _migrate_v4_to_v5,
 }
 
 
@@ -314,6 +226,28 @@ class KnowledgeStore:
         """Commit unless inside an open transaction block."""
         if self._txn_depth == 0:
             self._conn.commit()
+
+    # ------------------------------------------------------------------ #
+    # Metadata
+    # ------------------------------------------------------------------ #
+
+    def get_metadata(self, key: str) -> str | None:
+        cur = self._conn.execute(
+            "SELECT value FROM metadata WHERE key = ?", (key,)
+        )
+        row = cur.fetchone()
+        return row["value"] if row else None
+
+    def set_metadata(self, key: str, value: str) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
+            (key, value),
+        )
+        self._commit()
+
+    def delete_metadata(self, key: str) -> None:
+        self._conn.execute("DELETE FROM metadata WHERE key = ?", (key,))
+        self._commit()
 
     # ------------------------------------------------------------------ #
     # Schema
@@ -431,10 +365,6 @@ class KnowledgeStore:
             id                   TEXT PRIMARY KEY,
             target_id            TEXT NOT NULL,
             hypothesis_id        TEXT,
-            objective_id         TEXT,
-            actor_id             TEXT,
-            resource_id          TEXT,
-            interface            TEXT,
             severity             TEXT NOT NULL DEFAULT 'MEDIUM',
             affected_component   TEXT DEFAULT '',
             attack_hypothesis    TEXT DEFAULT '',
@@ -446,24 +376,6 @@ class KnowledgeStore:
             verification_status  TEXT NOT NULL DEFAULT 'DISCOVERED',
             created_at           TEXT NOT NULL,
             updated_at           TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS defenses (
-            id                  TEXT PRIMARY KEY,
-            finding_id          TEXT NOT NULL,
-            description         TEXT NOT NULL,
-            verification_status TEXT NOT NULL DEFAULT 'MITIGATION',
-            applied_at          TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS regressions (
-            id             TEXT PRIMARY KEY,
-            defense_id     TEXT NOT NULL,
-            hypothesis_id  TEXT NOT NULL,
-            target_id      TEXT NOT NULL,
-            outcome        TEXT NOT NULL,
-            detail         TEXT DEFAULT '',
-            created_at     TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS knowledge (
@@ -485,117 +397,22 @@ class KnowledgeStore:
             created_at          TEXT NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS protected_resources (
+        CREATE TABLE IF NOT EXISTS journal_entries (
             id             TEXT PRIMARY KEY,
-            name           TEXT NOT NULL,
-            resource_type  TEXT NOT NULL,
-            value          TEXT DEFAULT '',
-            description    TEXT DEFAULT '',
-            interfaces     TEXT DEFAULT '[]'
-        );
-
-        CREATE TABLE IF NOT EXISTS actors (
-            id           TEXT PRIMARY KEY,
-            name         TEXT NOT NULL,
-            kind         TEXT NOT NULL,
-            description  TEXT DEFAULT '',
-            entitlements TEXT DEFAULT '[]'
-        );
-
-        CREATE TABLE IF NOT EXISTS entitlements (
-            id          TEXT PRIMARY KEY,
-            actor_id    TEXT NOT NULL,
-            resource_id TEXT NOT NULL,
-            action      TEXT DEFAULT 'access'
-        );
-
-        CREATE TABLE IF NOT EXISTS security_invariants (
-            id               TEXT PRIMARY KEY,
-            actor_id         TEXT NOT NULL,
-            resource_id      TEXT NOT NULL,
-            forbidden_action TEXT DEFAULT 'access',
-            statement        TEXT DEFAULT '',
-            status           TEXT NOT NULL DEFAULT 'UNTESTED'
-        );
-
-        CREATE TABLE IF NOT EXISTS attack_objectives (
-            id                   TEXT PRIMARY KEY,
-            campaign_id          TEXT NOT NULL,
-            actor_id             TEXT NOT NULL,
-            resource_id          TEXT NOT NULL,
-            security_invariant_id TEXT NOT NULL,
-            success_condition    TEXT DEFAULT '',
-            status               TEXT NOT NULL DEFAULT 'FORMULATED'
-        );
-
-        CREATE TABLE IF NOT EXISTS campaigns (
-            id               TEXT PRIMARY KEY,
-            name             TEXT NOT NULL,
-            target_id        TEXT NOT NULL,
-            target_adapter   TEXT DEFAULT '',
-            description      TEXT DEFAULT '',
-            actor_ids        TEXT DEFAULT '[]',
-            resource_ids     TEXT DEFAULT '[]',
-            objective_ids    TEXT DEFAULT '[]',
-            invariant_ids    TEXT DEFAULT '[]',
-            status           TEXT NOT NULL DEFAULT 'CREATED',
-            created_at       TEXT NOT NULL,
-            started_at       TEXT,
-            completed_at     TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS attack_surfaces (
-            id            TEXT PRIMARY KEY,
-            target_id     TEXT NOT NULL,
-            interfaces    TEXT DEFAULT '[]',
-            resources     TEXT DEFAULT '[]',
-            auth_states   TEXT DEFAULT '[]',
-            transitions   TEXT DEFAULT '[]'
-        );
-
-        CREATE TABLE IF NOT EXISTS attack_paths (
-            id          TEXT PRIMARY KEY,
-            campaign_id TEXT DEFAULT '',
-            actor_id    TEXT NOT NULL,
-            interface   TEXT NOT NULL,
-            resource_id TEXT NOT NULL,
-            operation   TEXT DEFAULT 'access',
-            outcome     TEXT NOT NULL DEFAULT 'INCONCLUSIVE'
-        );
-
-        CREATE TABLE IF NOT EXISTS impact_verifications (
-            id          TEXT PRIMARY KEY,
-            finding_id  TEXT NOT NULL,
-            verifier    TEXT DEFAULT 'ImpactVerifier',
-            verified    INTEGER NOT NULL DEFAULT 0,
-            method      TEXT DEFAULT '',
-            detail      TEXT DEFAULT '{}',
-            verified_at TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS proof_sessions (
-            id               TEXT PRIMARY KEY,
-            finding_id       TEXT NOT NULL,
-            campaign_id      TEXT DEFAULT '',
-            target_id        TEXT NOT NULL,
-            target_adapter   TEXT DEFAULT '',
-            actor_id         TEXT NOT NULL,
-            resource_id      TEXT NOT NULL,
-            username         TEXT DEFAULT '',
-            key_hash         TEXT NOT NULL,
-            status           TEXT NOT NULL DEFAULT 'ACTIVE',
-            created_at       TEXT NOT NULL,
-            expires_at       TEXT NOT NULL,
-            revoked_at       TEXT,
-            last_used_at     TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS case_studies (
-            id          TEXT PRIMARY KEY,
-            finding_id  TEXT NOT NULL,
-            title       TEXT DEFAULT '',
-            body        TEXT DEFAULT '{}',
-            created_at  TEXT NOT NULL
+            target_id      TEXT NOT NULL,
+            target_url     TEXT DEFAULT '',
+            attack_key     TEXT DEFAULT '',
+            attack_name    TEXT DEFAULT '',
+            family         TEXT DEFAULT '',
+            outcome        TEXT NOT NULL DEFAULT 'INCONCLUSIVE',
+            summary        TEXT DEFAULT '',
+            how_it_was_done TEXT DEFAULT '',
+            observed_result TEXT DEFAULT '',
+            detail         TEXT DEFAULT '{}',
+            evidence_ids   TEXT DEFAULT '[]',
+            hypothesis_id  TEXT,
+            experiment_id  TEXT,
+            created_at     TEXT NOT NULL
         );
 
         CREATE INDEX IF NOT EXISTS idx_hypotheses_target ON hypotheses(target_id);
@@ -604,12 +421,9 @@ class KnowledgeStore:
         CREATE INDEX IF NOT EXISTS idx_experiments_target ON experiments(target_id);
         CREATE INDEX IF NOT EXISTS idx_findings_target ON findings(target_id);
         CREATE INDEX IF NOT EXISTS idx_findings_status ON findings(verification_status);
-        CREATE INDEX IF NOT EXISTS idx_findings_boundary
-            ON findings(target_id, actor_id, resource_id, interface);
         CREATE INDEX IF NOT EXISTS idx_knowledge_target ON knowledge(target_id);
         CREATE INDEX IF NOT EXISTS idx_knowledge_kind ON knowledge(kind);
-        CREATE INDEX IF NOT EXISTS idx_attack_paths_campaign
-            ON attack_paths(campaign_id);
+        CREATE INDEX IF NOT EXISTS idx_journal_target ON journal_entries(target_id);
         """
         self._conn.executescript(sql)
         self._conn.execute(
@@ -883,15 +697,13 @@ class KnowledgeStore:
     def save_finding(self, f: Finding) -> None:
         self._conn.execute(
             """INSERT OR REPLACE INTO findings
-               (id, target_id, hypothesis_id, objective_id, actor_id,
-                resource_id, interface, severity, affected_component,
+               (id, target_id, hypothesis_id, severity, affected_component,
                 attack_hypothesis, observed_behavior, evidence_ids, impact,
                 reproduction, recommended_mitigation, verification_status,
                 created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                f.id, f.target_id, f.hypothesis_id, f.objective_id,
-                f.actor_id, f.resource_id, f.interface, f.severity.value,
+                f.id, f.target_id, f.hypothesis_id, f.severity.value,
                 f.affected_component, f.attack_hypothesis,
                 f.observed_behavior, _j(f.evidence_ids), f.impact,
                 f.reproduction, f.recommended_mitigation,
@@ -906,10 +718,6 @@ class KnowledgeStore:
             id=r["id"],
             target_id=r["target_id"],
             hypothesis_id=r["hypothesis_id"],
-            objective_id=r["objective_id"],
-            actor_id=r["actor_id"],
-            resource_id=r["resource_id"],
-            interface=r["interface"],
             severity=Severity(r["severity"]),
             affected_component=r["affected_component"],
             attack_hypothesis=r["attack_hypothesis"],
@@ -942,112 +750,12 @@ class KnowledgeStore:
             )
         return [self._row_to_finding(r) for r in cur.fetchall()]
 
-    def find_open_boundary_finding(
-        self,
-        target_id: str,
-        actor_id: str,
-        resource_id: str,
-        interface: str,
-    ) -> Finding | None:
-        """Return the open finding for a violated boundary identity, if any.
-
-        The identity is (target, actor, resource, interface) — the
-        deduplication key for campaign findings. Legacy findings without
-        structured identities never match (SQL NULL comparison): they cannot
-        be reliably deduplicated and are left alone.
-        """
-        cur = self._conn.execute(
-            """SELECT * FROM findings
-               WHERE target_id = ? AND actor_id = ? AND resource_id = ?
-                 AND interface = ? AND verification_status != ?
-               ORDER BY created_at
-               LIMIT 1""",
-            (target_id, actor_id, resource_id, interface,
-             FindingStatus.CLOSED.value),
-        )
-        r = cur.fetchone()
-        return self._row_to_finding(r) if r else None
-
     def update_finding_status(self, finding_id: str, status: FindingStatus) -> None:
         self._conn.execute(
             "UPDATE findings SET verification_status = ?, updated_at = ? WHERE id = ?",
             (status.value, _now(), finding_id),
         )
         self._commit()
-
-    # ------------------------------------------------------------------ #
-    # CRUD — Defenses
-    # ------------------------------------------------------------------ #
-
-    def save_defense(self, d: Defense) -> None:
-        self._conn.execute(
-            "INSERT INTO defenses "
-            "(id, finding_id, description, verification_status, applied_at) "
-            "VALUES (?, ?, ?, ?, ?) "
-            "ON CONFLICT(id) DO NOTHING",
-            (d.id, d.finding_id, d.description, d.verification_status.value,
-             d.applied_at.isoformat()),
-        )
-        self._commit()
-
-    def list_defenses(self, finding_id: str | None = None) -> list[Defense]:
-        if finding_id:
-            cur = self._conn.execute(
-                "SELECT * FROM defenses WHERE finding_id = ? ORDER BY applied_at",
-                (finding_id,),
-            )
-        else:
-            cur = self._conn.execute(
-                "SELECT * FROM defenses ORDER BY applied_at"
-            )
-        return [
-            Defense(
-                id=r["id"],
-                finding_id=r["finding_id"],
-                description=r["description"],
-                verification_status=FindingStatus(r["verification_status"]),
-                applied_at=_dt(r["applied_at"]),
-            )
-            for r in cur.fetchall()
-        ]
-
-    # ------------------------------------------------------------------ #
-    # CRUD — Regressions
-    # ------------------------------------------------------------------ #
-
-    def save_regression(self, r: Regression) -> None:
-        self._conn.execute(
-            "INSERT INTO regressions "
-            "(id, defense_id, hypothesis_id, target_id, outcome, detail, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT(id) DO NOTHING",
-            (r.id, r.defense_id, r.hypothesis_id, r.target_id,
-             r.outcome.value, r.detail, r.created_at.isoformat()),
-        )
-        self._commit()
-
-    def list_regressions(self, target_id: str | None = None) -> list[Regression]:
-        if target_id:
-            cur = self._conn.execute(
-                "SELECT * FROM regressions WHERE target_id = ? ORDER BY created_at",
-                (target_id,),
-            )
-        else:
-            cur = self._conn.execute(
-                "SELECT * FROM regressions ORDER BY created_at"
-            )
-        return [
-            Regression(
-                id=r["id"],
-                defense_id=r["defense_id"],
-                hypothesis_id=r["hypothesis_id"],
-                target_id=r["target_id"],
-                outcome=TestOutcome(r["outcome"]),
-                detail=r["detail"],
-                created_at=_dt(r["created_at"]),
-            )
-            for r in cur.fetchall()
-        ]
 
     # ------------------------------------------------------------------ #
     # CRUD — Knowledge
@@ -1136,409 +844,77 @@ class KnowledgeStore:
         ]
 
     # ------------------------------------------------------------------ #
-    # CRUD — Campaign entities
+    # CRUD — Journal
     # ------------------------------------------------------------------ #
 
-    def save_protected_resource(self, r: ProtectedResource) -> None:
+    def save_journal_entry(self, entry: JournalEntry) -> None:
         self._conn.execute(
-            "INSERT OR REPLACE INTO protected_resources "
-            "(id, name, resource_type, value, description, interfaces) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (r.id, r.name, r.resource_type.value, r.value,
-             r.description, _j(r.interfaces)),
-        )
-        self._commit()
-
-    def save_actor(self, a: Actor) -> None:
-        self._conn.execute(
-            "INSERT OR REPLACE INTO actors "
-            "(id, name, kind, description, entitlements) VALUES (?, ?, ?, ?, ?)",
-            (a.id, a.name, a.kind.value, a.description, _j(a.entitlements)),
-        )
-        self._commit()
-
-    def get_actor(self, actor_id: str) -> Actor | None:
-        cur = self._conn.execute("SELECT * FROM actors WHERE id = ?", (actor_id,))
-        r = cur.fetchone()
-        if r is None:
-            return None
-        return Actor(
-            id=r["id"],
-            name=r["name"],
-            kind=ActorKind(r["kind"]),
-            description=r["description"],
-            entitlements=_uj(r["entitlements"]),
-        )
-
-    def list_actors(self) -> list[Actor]:
-        cur = self._conn.execute("SELECT * FROM actors ORDER BY name")
-        return [
-            Actor(
-                id=r["id"],
-                name=r["name"],
-                kind=ActorKind(r["kind"]),
-                description=r["description"],
-                entitlements=_uj(r["entitlements"]),
-            )
-            for r in cur.fetchall()
-        ]
-
-    def get_protected_resource(self, resource_id: str) -> ProtectedResource | None:
-        cur = self._conn.execute(
-            "SELECT * FROM protected_resources WHERE id = ?", (resource_id,)
-        )
-        r = cur.fetchone()
-        if r is None:
-            return None
-        return ProtectedResource(
-            id=r["id"],
-            name=r["name"],
-            resource_type=ProtectedResourceType(r["resource_type"]),
-            value=r["value"],
-            description=r["description"],
-            interfaces=_uj(r["interfaces"]),
-        )
-
-    def save_entitlement(self, e: Entitlement) -> None:
-        self._conn.execute(
-            "INSERT INTO entitlements "
-            "(id, actor_id, resource_id, action) VALUES (?, ?, ?, ?) "
+            "INSERT INTO journal_entries "
+            "(id, target_id, target_url, attack_key, attack_name, family, "
+            " outcome, summary, how_it_was_done, observed_result, detail, "
+            " evidence_ids, hypothesis_id, experiment_id, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(id) DO NOTHING",
-            (e.id, e.actor_id, e.resource_id, e.action),
+            (
+                entry.id, entry.target_id, entry.target_url, entry.attack_key,
+                entry.attack_name, entry.family, entry.outcome.value,
+                entry.summary, entry.how_it_was_done, entry.observed_result,
+                _j(entry.detail), _j(entry.evidence_ids),
+                entry.hypothesis_id, entry.experiment_id,
+                entry.created_at.isoformat(),
+            ),
         )
         self._commit()
 
-    def save_invariant(self, inv: SecurityInvariant) -> None:
-        self._conn.execute(
-            "INSERT INTO security_invariants "
-            "(id, actor_id, resource_id, forbidden_action, statement, status) "
-            "VALUES (?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT(id) DO NOTHING",
-            (inv.id, inv.actor_id, inv.resource_id, inv.forbidden_action,
-             inv.statement, inv.status.value),
-        )
-        self._commit()
-
-    def update_invariant_status(self, invariant_id: str, status: InvariantStatus) -> None:
-        self._conn.execute(
-            "UPDATE security_invariants SET status = ? WHERE id = ?",
-            (status.value, invariant_id),
-        )
-        self._commit()
-
-    def save_objective(self, o: AttackObjective) -> None:
-        self._conn.execute(
-            "INSERT INTO attack_objectives "
-            "(id, campaign_id, actor_id, resource_id, security_invariant_id, "
-            " success_condition, status) VALUES (?, ?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT(id) DO NOTHING",
-            (o.id, o.campaign_id, o.actor_id, o.resource_id,
-             o.security_invariant_id, o.success_condition, o.status.value),
-        )
-        self._commit()
-
-    def update_objective_status(self, objective_id: str, status: ObjectiveStatus) -> None:
-        self._conn.execute(
-            "UPDATE attack_objectives SET status = ? WHERE id = ?",
-            (status.value, objective_id),
-        )
-        self._commit()
-
-    def list_objectives(self, campaign_id: str) -> list[AttackObjective]:
-        cur = self._conn.execute(
-            "SELECT * FROM attack_objectives WHERE campaign_id = ?",
-            (campaign_id,),
-        )
-        return [
-            AttackObjective(
-                id=r["id"],
-                campaign_id=r["campaign_id"],
-                actor_id=r["actor_id"],
-                resource_id=r["resource_id"],
-                security_invariant_id=r["security_invariant_id"],
-                success_condition=r["success_condition"],
-                status=ObjectiveStatus(r["status"]),
-            )
-            for r in cur.fetchall()
-        ]
-
-    def save_campaign(self, c: Campaign) -> None:
-        self._conn.execute(
-            "INSERT OR REPLACE INTO campaigns "
-            "(id, name, target_id, target_adapter, description, actor_ids, "
-            " resource_ids, objective_ids, invariant_ids, status, created_at, "
-            " started_at, completed_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (c.id, c.name, c.target_id, c.target_adapter, c.description,
-             _j(c.actor_ids), _j(c.resource_ids), _j(c.objective_ids),
-             _j(c.invariant_ids), c.status.value, c.created_at.isoformat(),
-             c.started_at.isoformat() if c.started_at else None,
-             c.completed_at.isoformat() if c.completed_at else None),
-        )
-        self._commit()
-
-    def _row_to_campaign(self, r: sqlite3.Row) -> Campaign:
-        return Campaign(
+    def _row_to_journal_entry(self, r: sqlite3.Row) -> JournalEntry:
+        detail = r["detail"]
+        if detail and not detail.startswith("{"):
+            # An encrypted detail payload is a raw string, not JSON.
+            detail_value: Any = detail
+        else:
+            detail_value = _uj(detail)
+        return JournalEntry(
             id=r["id"],
-            name=r["name"],
             target_id=r["target_id"],
-            target_adapter=r["target_adapter"],
-            description=r["description"],
-            actor_ids=_uj(r["actor_ids"]),
-            resource_ids=_uj(r["resource_ids"]),
-            objective_ids=_uj(r["objective_ids"]),
-            invariant_ids=_uj(r["invariant_ids"]),
-            status=CampaignStatus(r["status"]),
+            target_url=r["target_url"],
+            attack_key=r["attack_key"],
+            attack_name=r["attack_name"],
+            family=r["family"],
+            outcome=TestOutcome(r["outcome"]),
+            summary=r["summary"],
+            how_it_was_done=r["how_it_was_done"],
+            observed_result=r["observed_result"],
+            detail=detail_value,
+            evidence_ids=_uj(r["evidence_ids"]),
+            hypothesis_id=r["hypothesis_id"],
+            experiment_id=r["experiment_id"],
             created_at=_dt(r["created_at"]),
-            started_at=_opt_dt(r["started_at"]),
-            completed_at=_opt_dt(r["completed_at"]),
         )
 
-    def get_campaign(self, campaign_id: str) -> Campaign | None:
+    def get_journal_entry(self, entry_id: str) -> JournalEntry | None:
         cur = self._conn.execute(
-            "SELECT * FROM campaigns WHERE id = ?", (campaign_id,)
+            "SELECT * FROM journal_entries WHERE id = ?", (entry_id,)
         )
         r = cur.fetchone()
-        if r is None:
-            return None
-        return self._row_to_campaign(r)
+        return self._row_to_journal_entry(r) if r else None
 
-    def list_campaigns(self) -> list[Campaign]:
-        cur = self._conn.execute("SELECT * FROM campaigns ORDER BY created_at")
-        return [self._row_to_campaign(r) for r in cur.fetchall()]
-
-    def save_attack_surface(self, s: AttackSurface) -> None:
-        self._conn.execute(
-            "INSERT OR REPLACE INTO attack_surfaces "
-            "(id, target_id, interfaces, resources, auth_states, transitions) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (s.id, s.target_id, _j(s.interfaces), _j(s.resources),
-             _j(s.auth_states), _j(s.transitions)),
-        )
-        self._commit()
-
-    def get_attack_surface(self, target_id: str) -> AttackSurface | None:
-        cur = self._conn.execute(
-            "SELECT * FROM attack_surfaces WHERE target_id = ?",
-            (target_id,),
-        )
-        r = cur.fetchone()
-        if r is None:
-            return None
-        return AttackSurface(
-            id=r["id"],
-            target_id=r["target_id"],
-            interfaces=_uj(r["interfaces"]),
-            resources=_uj(r["resources"]),
-            auth_states=_uj(r["auth_states"]),
-            transitions=_uj(r["transitions"]),
-        )
-
-    def save_attack_path(self, p: AttackPath) -> None:
-        self._conn.execute(
-            "INSERT INTO attack_paths "
-            "(id, campaign_id, actor_id, interface, resource_id, operation, outcome) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT(id) DO NOTHING",
-            (p.id, p.campaign_id, p.actor_id, p.interface, p.resource_id,
-             p.operation, p.outcome.value),
-        )
-        self._commit()
-
-    def list_attack_paths(
-        self,
-        actor_ids: list[str] | None = None,
-        outcome: TestOutcome | None = None,
-        campaign_id: str | None = None,
-    ) -> list[AttackPath]:
-        """List attack paths, optionally filtered by actor, outcome, campaign."""
-        sql = "SELECT * FROM attack_paths"
+    def list_journal_entries(
+        self, target_id: str | None = None, attack_key: str | None = None
+    ) -> list[JournalEntry]:
+        sql = "SELECT * FROM journal_entries"
         clauses: list[str] = []
         params: list = []
-        if actor_ids:
-            marks = ",".join("?" * len(actor_ids))
-            clauses.append(f"actor_id IN ({marks})")
-            params.extend(actor_ids)
-        if outcome:
-            clauses.append("outcome = ?")
-            params.append(outcome.value)
-        if campaign_id:
-            clauses.append("campaign_id = ?")
-            params.append(campaign_id)
+        if target_id:
+            clauses.append("target_id = ?")
+            params.append(target_id)
+        if attack_key:
+            clauses.append("attack_key = ?")
+            params.append(attack_key)
         if clauses:
             sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY created_at"
         cur = self._conn.execute(sql, params)
-        return [
-            AttackPath(
-                id=r["id"],
-                campaign_id=r["campaign_id"],
-                actor_id=r["actor_id"],
-                interface=r["interface"],
-                resource_id=r["resource_id"],
-                operation=r["operation"],
-                outcome=TestOutcome(r["outcome"]),
-            )
-            for r in cur.fetchall()
-        ]
-
-    # ------------------------------------------------------------------ #
-    # CRUD — Impact verifications
-    # ------------------------------------------------------------------ #
-
-    def save_impact_verification(self, v: ImpactVerification) -> None:
-        self._conn.execute(
-            "INSERT INTO impact_verifications "
-            "(id, finding_id, verifier, verified, method, detail, verified_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT(id) DO NOTHING",
-            (v.id, v.finding_id, v.verifier, 1 if v.verified else 0,
-             v.method, _j(v.detail), v.verified_at.isoformat()),
-        )
-        self._commit()
-
-    def get_impact_verifications(self, finding_id: str) -> list[ImpactVerification]:
-        cur = self._conn.execute(
-            "SELECT * FROM impact_verifications WHERE finding_id = ? "
-            "ORDER BY verified_at DESC",
-            (finding_id,),
-        )
-        return [
-            ImpactVerification(
-                id=r["id"],
-                finding_id=r["finding_id"],
-                verifier=r["verifier"],
-                verified=bool(r["verified"]),
-                method=r["method"],
-                detail=_uj(r["detail"]),
-                verified_at=_dt(r["verified_at"]),
-            )
-            for r in cur.fetchall()
-        ]
-
-    # ------------------------------------------------------------------ #
-    # CRUD — Proof sessions
-    # ------------------------------------------------------------------ #
-
-    def save_proof_session(self, s: ProofSession) -> None:
-        self._conn.execute(
-            "INSERT INTO proof_sessions "
-            "(id, finding_id, campaign_id, target_id, target_adapter, "
-            " actor_id, resource_id, username, key_hash, status, created_at, "
-            " expires_at, revoked_at, last_used_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT(id) DO NOTHING",
-            (s.id, s.finding_id, s.campaign_id, s.target_id,
-             s.target_adapter, s.actor_id, s.resource_id, s.username,
-             s.key_hash, s.status.value, s.created_at.isoformat(),
-             s.expires_at.isoformat(),
-             s.revoked_at.isoformat() if s.revoked_at else None,
-             s.last_used_at.isoformat() if s.last_used_at else None),
-        )
-        self._commit()
-
-    def get_proof_session(self, session_id: str) -> ProofSession | None:
-        cur = self._conn.execute(
-            "SELECT * FROM proof_sessions WHERE id = ?", (session_id,)
-        )
-        r = cur.fetchone()
-        if r is None:
-            return None
-        return self._row_to_proof_session(r)
-
-    def _row_to_proof_session(self, r: sqlite3.Row) -> ProofSession:
-        return ProofSession(
-            id=r["id"],
-            finding_id=r["finding_id"],
-            campaign_id=r["campaign_id"],
-            target_id=r["target_id"],
-            target_adapter=r["target_adapter"],
-            actor_id=r["actor_id"],
-            resource_id=r["resource_id"],
-            username=r["username"],
-            key_hash=r["key_hash"],
-            status=ProofSessionStatus(r["status"]),
-            created_at=_dt(r["created_at"]),
-            expires_at=_dt(r["expires_at"]),
-            revoked_at=_opt_dt(r["revoked_at"]),
-            last_used_at=_opt_dt(r["last_used_at"]),
-        )
-
-    def list_proof_sessions(self) -> list[ProofSession]:
-        cur = self._conn.execute(
-            "SELECT * FROM proof_sessions ORDER BY created_at DESC"
-        )
-        return [self._row_to_proof_session(r) for r in cur.fetchall()]
-
-    def update_proof_session_status(
-        self, session_id: str, status: ProofSessionStatus
-    ) -> None:
-        self._conn.execute(
-            "UPDATE proof_sessions SET status = ? WHERE id = ?",
-            (status.value, session_id),
-        )
-        self._commit()
-
-    def revoke_proof_session(
-        self, session_id: str, revoked_at: datetime.datetime
-    ) -> None:
-        """Revoke a proof session, persisting both status and revoked_at.
-
-        The historical record is preserved; only status and revoked_at are
-        modified.
-        """
-        self._conn.execute(
-            "UPDATE proof_sessions SET status = ?, revoked_at = ? WHERE id = ?",
-            (ProofSessionStatus.REVOKED.value, revoked_at.isoformat(), session_id),
-        )
-        self._commit()
-
-    def touch_proof_session(self, session_id: str) -> None:
-        self._conn.execute(
-            "UPDATE proof_sessions SET last_used_at = ? WHERE id = ?",
-            (_now(), session_id),
-        )
-        self._commit()
-
-    # ------------------------------------------------------------------ #
-    # CRUD — Case studies
-    # ------------------------------------------------------------------ #
-
-    def save_case_study(self, cs: CaseStudy) -> None:
-        self._conn.execute(
-            "INSERT INTO case_studies "
-            "(id, finding_id, title, body, created_at) VALUES (?, ?, ?, ?, ?) "
-            "ON CONFLICT(id) DO NOTHING",
-            (cs.id, cs.finding_id, cs.title, _j(cs.body), cs.created_at.isoformat()),
-        )
-        self._commit()
-
-    def get_case_study(self, case_study_id: str) -> CaseStudy | None:
-        cur = self._conn.execute(
-            "SELECT * FROM case_studies WHERE id = ?", (case_study_id,)
-        )
-        r = cur.fetchone()
-        if r is None:
-            return None
-        return CaseStudy(
-            id=r["id"],
-            finding_id=r["finding_id"],
-            title=r["title"],
-            body=_uj(r["body"]),
-            created_at=_dt(r["created_at"]),
-        )
-
-    def list_case_studies(self) -> list[CaseStudy]:
-        cur = self._conn.execute("SELECT * FROM case_studies ORDER BY created_at")
-        return [
-            CaseStudy(
-                id=r["id"],
-                finding_id=r["finding_id"],
-                title=r["title"],
-                body=_uj(r["body"]),
-                created_at=_dt(r["created_at"]),
-            )
-            for r in cur.fetchall()
-        ]
+        return [self._row_to_journal_entry(r) for r in cur.fetchall()]
 
     # ------------------------------------------------------------------ #
     # Analytical queries
@@ -1572,12 +948,7 @@ class KnowledgeStore:
         return [self._row_to_finding(r) for r in cur.fetchall()]
 
     def build_report(self, target_id: str) -> ResearchReport:
-        """Build a summary report for a target.
-
-        The report covers both research models: v0.1 hypothesis experiments
-        and v0.2+ campaign boundary tests. Campaign paths are reported as
-        boundary tests, never masquerading as experiments.
-        """
+        """Build a summary report for a target."""
         exps = self.list_experiments(target_id)
         hyps = self.list_hypotheses(target_id)
         finds = self.list_findings(target_id)
@@ -1595,17 +966,6 @@ class KnowledgeStore:
             1 for f in finds if f.verification_status != FindingStatus.CLOSED
         )
 
-        campaign_paths_tested = 0
-        campaign_violations = 0
-        for campaign in self.list_campaigns():
-            if campaign.target_id != target_id:
-                continue
-            paths = self.list_attack_paths(campaign_id=campaign.id)
-            campaign_paths_tested += len(paths)
-            campaign_violations += sum(
-                1 for p in paths if p.outcome == TestOutcome.SUCCESS
-            )
-
         return ResearchReport(
             target_id=target_id,
             opensystem_version=VERSION,
@@ -1619,6 +979,4 @@ class KnowledgeStore:
             findings_created=len(finds),
             open_findings=open_finds,
             attack_classes_attempted=attack_classes,
-            campaign_paths_tested=campaign_paths_tested,
-            campaign_violations=campaign_violations,
         )

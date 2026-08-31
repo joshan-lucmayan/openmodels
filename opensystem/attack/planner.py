@@ -26,16 +26,19 @@ class AttackStrategy:
     name: str
     family: str
     description: str
-    # Each hypothesis generated carries origin="strategy:<name>"; the mock
-    # target uses that origin to map to a weakness key.
+    # Each hypothesis generated carries origin="strategy:<name>"; adapters
+    # translate that origin into a concrete test (mock: weakness key,
+    # http: protocol test, …).
     weakness_key: str | None = None
+    # Restrict the strategy to specific target adapters (None = any).
+    applies_to: tuple[str, ...] | None = None
 
 
 @dataclass
 class AttackPlanner:
     """Holds strategies and generates hypotheses for a target.
 
-    The initial strategy set is small and deterministic (see STRATEGIES).
+    The initial strategy set is small and deterministic (see HTTP_STRATEGIES).
     Future phases plug in richer hypothesis generators behind the same
     interface (e.g. an LLM-backed reasoner or a cross-component analyzer),
     while keeping the core loop unchanged.
@@ -83,6 +86,11 @@ class AttackPlanner:
         for strategy in self.strategies.values():
             if strategy.weakness_key is None:
                 continue
+            if (
+                strategy.applies_to is not None
+                and target.adapter not in strategy.applies_to
+            ):
+                continue
             statement = f"can {strategy.weakness_key} be demonstrated as a weakness?"
             if statement in existing_statements:
                 continue
@@ -110,64 +118,93 @@ class AttackPlanner:
 
 
 # --------------------------------------------------------------------------- #
-# Built-in strategy set.
+# HTTP(S) strategy set — real web application tests (live targets).
 # --------------------------------------------------------------------------- #
 
-STRATEGIES: list[AttackStrategy] = [
+HTTP_STRATEGIES: list[AttackStrategy] = [
     AttackStrategy(
-        name="auth-bypass",
-        family="authentication",
-        description="Test whether authentication can be bypassed.",
-        weakness_key="auth-bypass",
+        name="http-security-headers",
+        family="http-headers",
+        description="Test whether baseline security headers are missing.",
+        weakness_key="http-security-headers",
+        applies_to=("http",),
     ),
     AttackStrategy(
-        name="authz-ownership",
-        family="authorization",
-        description="Test whether object ownership checks can be bypassed.",
-        weakness_key="authz-ownership",
+        name="http-server-disclosure",
+        family="information-disclosure",
+        description="Test whether server software versions are disclosed.",
+        weakness_key="http-server-disclosure",
+        applies_to=("http",),
     ),
     AttackStrategy(
-        name="input-traversal",
-        family="input-validation",
-        description="Test whether path traversal is possible.",
-        weakness_key="input-traversal",
+        name="http-dir-listing",
+        family="information-disclosure",
+        description="Test whether directory listing (autoindex) is enabled.",
+        weakness_key="http-dir-listing",
+        applies_to=("http",),
     ),
     AttackStrategy(
-        name="resource-abuse",
-        family="resource-usage",
-        description="Test whether resources can be abused.",
-        weakness_key="resource-abuse",
+        name="http-sensitive-paths",
+        family="information-disclosure",
+        description="Test whether sensitive files (.git, .env, backups) are exposed.",
+        weakness_key="http-sensitive-paths",
+        applies_to=("http",),
     ),
     AttackStrategy(
-        name="agent-tool-boundary",
-        family="ai-agent",
-        description="Test whether an agent tool boundary can be escaped.",
-        weakness_key="agent-tool-boundary",
+        name="http-methods",
+        family="http-configuration",
+        description="Test whether dangerous HTTP methods are allowed.",
+        weakness_key="http-methods",
+        applies_to=("http",),
     ),
     AttackStrategy(
-        name="session-fixation",
+        name="http-cors",
+        family="http-configuration",
+        description="Test whether CORS reflects arbitrary origins.",
+        weakness_key="http-cors",
+        applies_to=("http",),
+    ),
+    AttackStrategy(
+        name="http-cookie-flags",
         family="session-management",
-        description="Test whether session ids can be fixed across auth.",
-        weakness_key="session-fixation",
+        description="Test whether session cookies lack Secure/HttpOnly flags.",
+        weakness_key="http-cookie-flags",
+        applies_to=("http",),
     ),
     AttackStrategy(
-        name="state-transition",
-        family="business-logic",
-        description="Test whether illegal workflow state transitions are allowed.",
-        weakness_key="state-transition",
+        name="http-open-redirect",
+        family="input-validation",
+        description="Test whether common redirect parameters allow external redirects.",
+        weakness_key="http-open-redirect",
+        applies_to=("http",),
     ),
     AttackStrategy(
-        name="dependency-supply-chain",
-        family="supply-chain",
-        description="Test whether dependencies can be substituted.",
-        weakness_key="dependency-supply-chain",
+        name="http-admin-exposure",
+        family="authorization",
+        description="Test whether admin interfaces are reachable without authentication.",
+        weakness_key="http-admin-exposure",
+        applies_to=("http",),
+    ),
+    AttackStrategy(
+        name="http-error-disclosure",
+        family="information-disclosure",
+        description="Test whether error pages disclose stack traces.",
+        weakness_key="http-error-disclosure",
+        applies_to=("http",),
+    ),
+    AttackStrategy(
+        name="http-tls",
+        family="transport-security",
+        description="Test whether transport security (TLS/HSTS) is weak.",
+        weakness_key="http-tls",
+        applies_to=("http",),
     ),
 ]
 
 
 def default_planner(store: object) -> AttackPlanner:
-    """Create an AttackPlanner with the built-in strategy set."""
+    """Create an AttackPlanner with the built-in HTTP strategy set."""
     planner = AttackPlanner(store=store)
-    for strategy in STRATEGIES:
+    for strategy in HTTP_STRATEGIES:
         planner.register_strategy(strategy)
     return planner

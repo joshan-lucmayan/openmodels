@@ -4,22 +4,22 @@ from __future__ import annotations
 
 from opensystem.evidence.engine import EvidenceCollector
 from opensystem.experiment.engine import ExperimentEngine
-from opensystem.models import Evidence, EvidenceKind, Hypothesis, TestOutcome
+from opensystem.models import Evidence, EvidenceKind, Hypothesis
 from opensystem.policy.engine import PolicyEnforcer
 
 
-def test_evidence_linked_to_experiment(store, mock_target, policy):
+def test_evidence_linked_to_experiment(store, http_target, policy):
     engine = ExperimentEngine(store, PolicyEnforcer(policy))
-    target_model = mock_target.discover()
+    target_model = http_target.discover()
     store.save_target(target_model)
     hyp = Hypothesis(
         target_id=target_model.id,
-        statement="auth bypass possible",
-        origin="strategy:auth-bypass",
+        statement="security headers missing",
+        origin="strategy:http-security-headers",
     )
     store.save_hypothesis(hyp)
 
-    experiment = engine.run(hyp, mock_target, target_model)
+    experiment = engine.run(hyp, http_target, target_model)
     assert len(experiment.evidence_ids) == 1
 
     # Experiment rows reference the collected evidence ids.
@@ -27,17 +27,17 @@ def test_evidence_linked_to_experiment(store, mock_target, policy):
     assert persisted.evidence_ids == experiment.evidence_ids
 
 
-def test_evidence_collector_persists(store, mock_target):
+def test_evidence_collector_persists(store, http_target):
     from opensystem.models import TestSpec
 
-    mock_target.execute_test(
-        TestSpec(name="t", parameters={"weakness": "auth-bypass"})
+    http_target.execute_test(
+        TestSpec(name="t", parameters={"weakness": "http-security-headers"})
     )
     collector = EvidenceCollector(store)
-    evidence = collector.collect(mock_target)
+    evidence = collector.collect(http_target)
     assert len(evidence) == 1
-    assert evidence[0].kind == EvidenceKind.OBSERVATION
-    assert evidence[0].data["outcome"] == TestOutcome.SUCCESS.value
+    assert evidence[0].kind == EvidenceKind.RESPONSE
+    assert evidence[0].data["status"] == 200
 
 
 def test_evidence_models_roundtrip(store):
@@ -50,3 +50,4 @@ def test_evidence_models_roundtrip(store):
     # Save + reload through a fresh query path to ensure no corruption.
     assert ev.id is not None
     assert ev.kind == EvidenceKind.RESPONSE
+    assert ev.data["status"] == 200

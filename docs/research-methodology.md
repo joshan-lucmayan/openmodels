@@ -47,7 +47,7 @@ a finding; a rejected hypothesis is retained as a blocked path.
 ### 6. Update Knowledge
 
 Every result updates the knowledge base: successful strategies, failed
-strategies, defenses, target changes. Every update carries provenance.
+strategies, target changes. Every update carries provenance.
 
 ### 7. Evolve
 

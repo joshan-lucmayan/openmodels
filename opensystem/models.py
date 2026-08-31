@@ -2,9 +2,9 @@
 
 These are the first-class objects of the research process. Nothing in
 OpenSystem represents the research process as unstructured text: every step —
-hypothesis, observation, experiment, result, evidence, finding, defense,
-regression, knowledge, evolution event — is an explicit model that can be
-persisted to the knowledge store and reasoned over.
+hypothesis, observation, experiment, result, evidence, finding, knowledge,
+evolution event — is an explicit model that can be persisted to the knowledge
+store and reasoned over.
 """
 
 from __future__ import annotations
@@ -73,7 +73,6 @@ class KnowledgeKind(str, Enum):
     ATTACK_STRATEGY = "ATTACK_STRATEGY"
     FAILED_STRATEGY = "FAILED_STRATEGY"
     SUCCESSFUL_STRATEGY = "SUCCESSFUL_STRATEGY"
-    DEFENSE = "DEFENSE"
     TARGET_CHANGE = "TARGET_CHANGE"
     PATTERN = "PATTERN"
 
@@ -81,97 +80,8 @@ class KnowledgeKind(str, Enum):
 class EvolutionTrigger(str, Enum):
     ATTACK_SUCCESS = "ATTACK_SUCCESS"
     ATTACK_FAILURE = "ATTACK_FAILURE"
-    DEFENSE_APPLIED = "DEFENSE_APPLIED"
     TARGET_CHANGE = "TARGET_CHANGE"
-    REGRESSION = "REGRESSION"
     MANUAL = "MANUAL"
-
-
-class ProtectedResourceType(str, Enum):
-    """Kinds of protected resources OpenSystem can reason about.
-
-    Deliberately generic: the same architecture reasons about paid AI
-    inference, paid APIs, premium features, protected data, cloud/compute
-    resources, privileged functionality, and more.
-    """
-
-    AI_MODEL = "ai_model"
-    API = "api"
-    DATA = "data"
-    COMPUTE = "compute"
-    FEATURE = "feature"
-    WEB_UI = "web_ui"
-    STORAGE = "storage"
-    NETWORK = "network"
-    SERVICE = "service"
-
-
-class ActorKind(str, Enum):
-    """Kinds of actors that may (or may not) be entitled to a resource.
-
-    An actor's privileges are NEVER assumed from client-supplied values;
-    they are declared in the entitlement model and the target decides whether
-    to actually enforce them.
-    """
-
-    UNAUTHENTICATED = "UNAUTHENTICATED"
-    FREE_USER = "FREE_USER"
-    PAID_USER = "PAID_USER"
-    ORG_MEMBER = "ORG_MEMBER"
-    ORG_ADMIN = "ORG_ADMIN"
-    API_CLIENT = "API_CLIENT"
-    SYSTEM = "SYSTEM"
-
-
-class EntitlementDecision(str, Enum):
-    ALLOW = "ALLOW"
-    DENY = "DENY"
-    UNKNOWN = "UNKNOWN"
-
-
-class InvariantStatus(str, Enum):
-    UNTESTED = "UNTESTED"
-    PASSED = "PASSED"
-    VIOLATED = "VIOLATED"
-    INCONCLUSIVE = "INCONCLUSIVE"
-
-
-class ObjectiveStatus(str, Enum):
-    FORMULATED = "FORMULATED"
-    ACTIVE = "ACTIVE"
-    ACHIEVED = "ACHIEVED"
-    BLOCKED = "BLOCKED"
-    INCONCLUSIVE = "INCONCLUSIVE"
-
-
-class CampaignStatus(str, Enum):
-    CREATED = "CREATED"
-    DISCOVERING = "DISCOVERING"
-    ACTIVE = "ACTIVE"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-    STOPPED = "STOPPED"
-
-
-class InvariantOutcome(str, Enum):
-    """Outcome of testing a security invariant across one path.
-
-    PASSED  -- the boundary held (forbidden access was denied)
-    VIOLATED -- the boundary was crossed (forbidden access succeeded)
-    """
-
-    PASSED = "PASSED"
-    VIOLATED = "VIOLATED"
-    INCONCLUSIVE = "INCONCLUSIVE"
-
-
-class ProofSessionStatus(str, Enum):
-    """Lifecycle of a proof session (show-once attack-proof credential)."""
-
-    ACTIVE = "ACTIVE"
-    EXPIRED = "EXPIRED"
-    REVOKED = "REVOKED"
-    USED = "USED"
 
 
 # --------------------------------------------------------------------------- #
@@ -201,7 +111,7 @@ class Target(BaseModel):
     id: str = Field(default_factory=new_id)
     name: str
     kind: str = "generic"
-    adapter: str = "mock"
+    adapter: str = "http"
     description: str = ""
     version: str = "0.0.0"
     assets: list[str] = Field(default_factory=list)
@@ -225,7 +135,7 @@ class TargetConfig(BaseModel):
 
     name: str
     target_type: str = "generic"
-    adapter: str = "mock"
+    adapter: str = "http"
     organization: str = ""
     environment: str = "development"
     description: str = ""
@@ -236,281 +146,15 @@ class TargetConfig(BaseModel):
     testing_policy: dict = Field(default_factory=dict)
     time_window: str = ""
     emergency_stop: bool = False
+    url: str = ""
+    """Base URL for live network targets (adapter=http)."""
+    allow_insecure_tls: bool = False
+    """Disable TLS verification (self-signed certs in test environments)."""
     created_at: datetime.datetime = Field(default_factory=utcnow)
 
 
 # --------------------------------------------------------------------------- #
-# Protected resources
-# --------------------------------------------------------------------------- #
-
-class ProtectedResource(BaseModel):
-    """Something valuable that an actor without entitlement must NOT access.
-
-    The protected resource is the object of the adversarial campaign. The
-    engine asks: can an actor not entitled to this resource cause it to be
-    accessed, consumed, modified, or disclosed?
-    """
-
-    id: str = Field(default_factory=new_id)
-    name: str
-    resource_type: ProtectedResourceType = ProtectedResourceType.API
-    value: str = ""
-    description: str = ""
-    interfaces: list[str] = Field(default_factory=list)
-
-
-# --------------------------------------------------------------------------- #
-# Actors / entitlements
-# --------------------------------------------------------------------------- #
-
-class Actor(BaseModel):
-    """An actor that may (or may not) be entitled to protected resources.
-
-    An actor has capabilities and declared entitlements. OpenSystem does NOT
-    assume the actor's privileges from client-supplied values; it investigates
-    whether the target actually enforces the declared boundary.
-    """
-
-    id: str = Field(default_factory=new_id)
-    name: str
-    kind: ActorKind = ActorKind.UNAUTHENTICATED
-    description: str = ""
-    entitlements: list[str] = Field(default_factory=list)
-
-
-class Entitlement(BaseModel):
-    """A declared entitlement: actor may perform an action on a resource."""
-
-    id: str = Field(default_factory=new_id)
-    actor_id: str
-    resource_id: str
-    action: str = "access"
-
-
-# --------------------------------------------------------------------------- #
-# Security invariants
-# --------------------------------------------------------------------------- #
-
-class SecurityInvariant(BaseModel):
-    """A security boundary that MUST hold.
-
-    Example:
-        "Actor without premium entitlement MUST NOT consume premium inference."
-
-    The invariant is tested across multiple interfaces and states. The engine
-    records: INVARIANT → TEST → RESULT.
-    """
-
-    id: str = Field(default_factory=new_id)
-    actor_id: str
-    resource_id: str
-    forbidden_action: str = "access"
-    statement: str = ""
-    status: InvariantStatus = InvariantStatus.UNTESTED
-
-
-# --------------------------------------------------------------------------- #
-# Attack objectives
-# --------------------------------------------------------------------------- #
-
-class AttackObjective(BaseModel):
-    """A structured adversarial objective.
-
-    Example objective:
-        "Determine whether an actor without premium entitlement can cause
-         premium AI inference to execute."
-
-    Represented structurally (not as plain text): target resource, actor,
-    the security invariant being challenged, and a success condition.
-    """
-
-    id: str = Field(default_factory=new_id)
-    campaign_id: str
-    actor_id: str
-    resource_id: str
-    security_invariant_id: str
-    success_condition: str = (
-        "demonstrate that the actor can perform the forbidden action on the "
-        "protected resource without entitlement"
-    )
-    status: ObjectiveStatus = ObjectiveStatus.FORMULATED
-
-
-# --------------------------------------------------------------------------- #
-# Attack surface / graph
-# --------------------------------------------------------------------------- #
-
-class AttackSurface(BaseModel):
-    """The reachable surface of a target, discovered before attacking.
-
-    The engine constructs a model of the target: interfaces, resources,
-    authentication states, authorization states, and state transitions —
-    then builds an attack surface graph.
-    """
-
-    id: str = Field(default_factory=new_id)
-    target_id: str
-    interfaces: list[dict] = Field(default_factory=list)
-    resources: list[dict] = Field(default_factory=list)
-    auth_states: list[dict] = Field(default_factory=list)
-    transitions: list[dict] = Field(default_factory=list)
-
-
-class AttackPath(BaseModel):
-    """One path through the attack graph: actor → interface → resource."""
-
-    id: str = Field(default_factory=new_id)
-    campaign_id: str = ""
-    actor_id: str
-    interface: str
-    resource_id: str
-    operation: str = "access"
-    outcome: TestOutcome = TestOutcome.INCONCLUSIVE
-
-
-# --------------------------------------------------------------------------- #
-# Campaign
-# --------------------------------------------------------------------------- #
-
-class Campaign(BaseModel):
-    """A complete adversarial assessment; resumable.
-
-    A campaign represents the full adversarial lifecycle against a target:
-
-        Campaign
-        ├── Target
-        ├── Scope
-        ├── Protected Resources
-        ├── Actors
-        ├── Objectives
-        ├── Security Invariants
-        ├── Attack Strategies
-        ├── Experiments
-        ├── Findings
-        ├── Evidence
-        └── Evolution History
-    """
-
-    id: str = Field(default_factory=new_id)
-    name: str
-    target_id: str
-    target_adapter: str = ""
-    description: str = ""
-    actor_ids: list[str] = Field(default_factory=list)
-    resource_ids: list[str] = Field(default_factory=list)
-    objective_ids: list[str] = Field(default_factory=list)
-    invariant_ids: list[str] = Field(default_factory=list)
-    status: CampaignStatus = CampaignStatus.CREATED
-    created_at: datetime.datetime = Field(default_factory=utcnow)
-    started_at: datetime.datetime | None = None
-    completed_at: datetime.datetime | None = None
-
-
-class CampaignReport(BaseModel):
-    """Evidence-based aggregate result of an adversarial campaign."""
-
-    campaign_id: str
-    target_id: str
-    opensystem_version: str
-    status: CampaignStatus = CampaignStatus.COMPLETED
-    actors: int = 0
-    protected_resources: int = 0
-    objectives_formulated: int = 0
-    objectives_achieved: int = 0
-    invariants_tested: int = 0
-    invariants_passed: int = 0
-    invariants_violated: int = 0
-    paths_tested: int = 0
-    findings_created: int = 0
-    open_findings: int = 0
-    stopped_reason: str = ""
-
-
-# --------------------------------------------------------------------------- #
-# Impact verification / proof sessions
-# --------------------------------------------------------------------------- #
-
-class ImpactVerification(BaseModel):
-    """An independent confirmation that a protected resource was reached.
-
-    A proof session may only be created AFTER ImpactVerifier has independently
-    confirmed that the confirmed finding genuinely reached the protected
-    resource. The proof credential is evidence infrastructure, not the attack
-    itself.
-    """
-
-    id: str = Field(default_factory=new_id)
-    finding_id: str
-    verifier: str = "ImpactVerifier"
-    verified: bool = False
-    method: str = ""
-    detail: dict = Field(default_factory=dict)
-    verified_at: datetime.datetime = Field(default_factory=utcnow)
-
-
-class ProofSession(BaseModel):
-    """A show-once attack-proof credential bound to a confirmed finding.
-
-    The raw secret is generated by a CSPRNG, displayed exactly once at
-    creation, and NEVER persisted. The store keeps only the SHA-256 hash and
-    the generated test username (which is metadata, not a secret).
-
-    The credential authenticates ONLY against the authorized test target for
-    the affected actor; it is not a privileged credential and must never be
-    used against production or third-party systems.
-    """
-
-    id: str = Field(default_factory=new_id)
-    finding_id: str
-    campaign_id: str = ""
-    target_id: str
-    target_adapter: str = ""
-    actor_id: str
-    resource_id: str
-    username: str = ""
-    key_hash: str = ""
-    status: ProofSessionStatus = ProofSessionStatus.ACTIVE
-    created_at: datetime.datetime = Field(default_factory=utcnow)
-    expires_at: datetime.datetime
-    revoked_at: datetime.datetime | None = None
-    last_used_at: datetime.datetime | None = None
-
-
-class ProofSessionResult(BaseModel):
-    """The result of creating a proof session, containing the raw key.
-
-    This is the ONLY object that ever carries the raw key. It must be
-    rendered once and discarded; never persisted, logged, or stored.
-    """
-
-    session: ProofSession
-    raw_key: str = ""
-
-
-class ProofVerification(BaseModel):
-    """Result of validating a presented proof key."""
-
-    ok: bool
-    session: ProofSession | None = None
-    reason: str = ""
-
-
-class CaseStudy(BaseModel):
-    """A reproducible written account of a confirmed finding.
-
-    The exported report must NEVER contain the raw proof key — only proof
-    session metadata.
-    """
-
-    id: str = Field(default_factory=new_id)
-    finding_id: str
-    title: str = ""
-    body: dict = Field(default_factory=dict)
-    created_at: datetime.datetime = Field(default_factory=utcnow)
-
-
-# --------------------------------------------------------------------------- #
-# Observation
+# Observations
 # --------------------------------------------------------------------------- #
 
 class Observation(BaseModel):
@@ -609,8 +253,6 @@ class Evidence(BaseModel):
 class Finding(BaseModel):
     """A confirmed weakness, with a full lifecycle (Phase 8).
 
-    Entity relationships are carried by the structured identifiers
-    (``objective_id`` / ``actor_id`` / ``resource_id`` / ``interface``).
     ``affected_component`` is a human-readable display string only — it is
     never the canonical source for resolving entities.
     """
@@ -618,10 +260,6 @@ class Finding(BaseModel):
     id: str = Field(default_factory=new_id)
     target_id: str
     hypothesis_id: str | None = None
-    objective_id: str | None = None
-    actor_id: str | None = None
-    resource_id: str | None = None
-    interface: str | None = None
     severity: Severity = Severity.MEDIUM
     affected_component: str = ""
     attack_hypothesis: str = ""
@@ -633,32 +271,6 @@ class Finding(BaseModel):
     verification_status: FindingStatus = FindingStatus.DISCOVERED
     created_at: datetime.datetime = Field(default_factory=utcnow)
     updated_at: datetime.datetime = Field(default_factory=utcnow)
-
-
-# --------------------------------------------------------------------------- #
-# Defense / Regression
-# --------------------------------------------------------------------------- #
-
-class Defense(BaseModel):
-    """A mitigation applied by the defender."""
-
-    id: str = Field(default_factory=new_id)
-    finding_id: str
-    description: str
-    verification_status: FindingStatus = FindingStatus.MITIGATION
-    applied_at: datetime.datetime = Field(default_factory=utcnow)
-
-
-class Regression(BaseModel):
-    """A regression test proving a previously-found weakness stays fixed."""
-
-    id: str = Field(default_factory=new_id)
-    defense_id: str
-    hypothesis_id: str
-    target_id: str
-    outcome: TestOutcome
-    detail: str = ""
-    created_at: datetime.datetime = Field(default_factory=utcnow)
 
 
 # --------------------------------------------------------------------------- #
@@ -693,6 +305,36 @@ class EvolutionEvent(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# Journal
+# --------------------------------------------------------------------------- #
+
+class JournalEntry(BaseModel):
+    """A human-readable record of one attack performed by OpenSystem.
+
+    Combines the documented methodology for the attack type with the
+    runtime specifics (target, parameters, observed result, evidence). The
+    journal is the complete, auditable account of what was tested, how, and
+    what the target returned.
+    """
+
+    id: str = Field(default_factory=new_id)
+    target_id: str
+    target_url: str = ""
+    attack_key: str = ""
+    attack_name: str = ""
+    family: str = ""
+    outcome: TestOutcome = TestOutcome.INCONCLUSIVE
+    summary: str = ""
+    how_it_was_done: str = ""
+    observed_result: str = ""
+    detail: dict | str = Field(default_factory=dict)
+    evidence_ids: list[str] = Field(default_factory=list)
+    hypothesis_id: str | None = None
+    experiment_id: str | None = None
+    created_at: datetime.datetime = Field(default_factory=utcnow)
+
+
+# --------------------------------------------------------------------------- #
 # Reporting
 # --------------------------------------------------------------------------- #
 
@@ -711,9 +353,4 @@ class ResearchReport(BaseModel):
     findings_created: int = 0
     open_findings: int = 0
     attack_classes_attempted: set[str] = Field(default_factory=set)
-    attack_classes_untested: set[str] = Field(default_factory=set)
-    # v0.2+ campaign boundary tests are reported separately — they are real
-    # research attempts but not v0.1 experiments.
-    campaign_paths_tested: int = 0
-    campaign_violations: int = 0
     stopped_reason: str = ""

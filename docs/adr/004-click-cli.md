@@ -7,7 +7,7 @@
 
 OpenSystem needs a functional, non-decorative CLI (init, target management,
 research sessions, experiment execution, finding management, attack listing,
-knowledge search, status, security-test cycle).
+knowledge search, journal management, status).
 
 ## Options Considered
 

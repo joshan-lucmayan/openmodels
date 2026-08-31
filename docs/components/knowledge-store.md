@@ -6,7 +6,7 @@
 
 Persistent storage for the OpenSystem research graph. Supports all entity
 types (targets, observations, hypotheses, experiments, evidence, findings,
-defenses, regressions, knowledge, evolution events) plus analytical queries.
+knowledge, evolution events) plus analytical queries.
 
 ## Storage
 
@@ -19,7 +19,6 @@ SQLite, single-file, WAL journal mode. Schema is defined in `_create_tables()`.
 - `open_findings()` — findings not yet CLOSED.
 - `search_knowledge(query, target_id)` — text search over knowledge records.
 - `build_report(target_id)` — aggregate `ResearchReport` for a target.
-- `list_regressions(target_id)` — regression records.
 
 ## Key Design Decisions
 

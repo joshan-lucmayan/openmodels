@@ -71,16 +71,6 @@ A finding is **retained in the historical record after it is closed**. Closing
 a finding does not delete it. This preserves the research history so future
 attacks can reason about what was found, fixed, and verified.
 
-## Finding → Defense → Regression
-
-When the defender patches a finding:
-
-1. A `Defense` is recorded against the finding.
-2. The finding transitions to MITIGATION (then VERIFICATION, then CLOSED).
-3. A regression test re-tests the original hypothesis; the outcome proves the
-   fix holds.
-4. The defense is recorded in knowledge with provenance.
-
 ## CLI
 
 - `opensystem finding list` — list findings (optionally only open ones)

@@ -54,6 +54,7 @@ experiment/          ExperimentEngine
 evidence/            EvidenceCollector
 finding/             FindingEngine (lifecycle)
 evolution/           EvolutionEngine
+journal/             Attack journal (playbook + engine + crypto)
 knowledge/           KnowledgeStore (SQLite)
 policy/              Policy + PolicyEnforcer
 cli/                 CLI commands

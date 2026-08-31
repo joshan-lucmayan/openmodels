@@ -21,8 +21,7 @@ Attack A → Defense A → Attack B → Defense B → Attack C → Defense C →
 OpenSystem evolves its **knowledge and hypotheses**, never its own code. Every
 evolution step is an explicit, auditable `EvolutionEvent` with:
 
-- a `trigger` (ATTACK_SUCCESS, ATTACK_FAILURE, DEFENSE_APPLIED, TARGET_CHANGE,
-  REGRESSION, MANUAL)
+- a `trigger` (ATTACK_SUCCESS, ATTACK_FAILURE, TARGET_CHANGE, MANUAL)
 - a `reason` — why this step happened
 - `from_hypothesis_id` / `to_hypothesis_id` — the lineage
 - a `provenance` — which component created it
@@ -37,8 +36,6 @@ The `EvolutionEngine` records events in these situations:
 |---|---|---|
 | ATTACK_SUCCESS | A test confirms a weakness | Successful strategy added to knowledge |
 | ATTACK_FAILURE | A test is blocked by a defense | Failed strategy added to knowledge |
-| DEFENSE_APPLIED | The defender patches a finding | Defense added to knowledge |
-| REGRESSION | A fixed weakness is re-tested | Regression record |
 | TARGET_CHANGE | The target's model changes | Knowledge record |
 | MANUAL | Operator-driven | Knowledge record |
 
@@ -47,26 +44,12 @@ The `EvolutionEngine` records events in these situations:
 `EvolutionEngine.next_hypothesis(blocked_hypothesis, alternate_keys)`:
 
 1. Given a blocked hypothesis, enumerate alternate attack surfaces from the
-   strategy set.
+   strategy set (filtered to the target's adapter).
 2. Skip surfaces already tested (accepted or rejected).
 3. Create a child hypothesis targeting the first untested alternate surface.
 4. Record an `EvolutionEvent` linking the blocked hypothesis to the child.
 
 This is the audit-trail version of "try a different path".
-
-## The Full Cycle (as demonstrated by `security-test`)
-
-```
-ROUND 1 (attack)
-  OBSERVE → HYPOTHESIZE → TEST → 5 findings confirmed
-DEFEND
-  5 defenses applied to the 5 findings
-REGRESS
-  5 re-tests → all FAILURE (defenses held)
-ROUND 2 (evolve)
-  New attack surfaces generated → 3 previously-untested classes tested
-  → 3 new findings
-```
 
 ## Provenance and Auditability
 
